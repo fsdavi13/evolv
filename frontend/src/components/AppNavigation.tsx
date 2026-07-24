@@ -2,6 +2,7 @@ import {
   Dumbbell,
   House,
   PersonStanding,
+  UserRound,
   Utensils,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -28,6 +29,11 @@ const navigationItems = [
     label: "Dieta",
     path: "/dieta",
     icon: Utensils,
+  },
+  {
+    label: "Perfil",
+    path: "/perfil",
+    icon: UserRound,
   },
 ];
 
@@ -57,13 +63,12 @@ function AppNavigation() {
             to={item.path}
           >
             <Icon
-              aria-hidden="true"
               className="app-navigation__icon"
-              size={22}
-              strokeWidth={2}
+              size={20}
+              aria-hidden="true"
             />
 
-            <span>{item.label}</span>
+            {item.label}
           </NavLink>
         );
       })}
