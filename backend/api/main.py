@@ -10,6 +10,8 @@ from backend.api.routers.dashboard_router import (
     router as dashboard_router,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from backend.api.routers.perfil_router import router as perfil_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,10 +37,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(academia_router)
 app.include_router(corrida_router)
 app.include_router(dieta_router)
 app.include_router(dashboard_router)
+app.include_router(perfil_router)
+
 
 @app.get("/health")
 def verificar_saude() -> dict[str, str]:

@@ -2,6 +2,7 @@ from backend.services.academia_service import AcademiaService
 from backend.services.corrida_service import CorridaService
 from backend.services.dashboard_service import DashboardService
 from backend.services.dieta_service import DietaService
+from backend.services.perfil_service import PerfilService
 
 
 def obter_academia_service() -> AcademiaService:
@@ -18,3 +19,7 @@ def obter_dieta_service() -> DietaService:
 
 def obter_dashboard_service() -> DashboardService:
     return DashboardService()
+
+
+def obter_perfil_service() -> PerfilService:
+    return PerfilService()

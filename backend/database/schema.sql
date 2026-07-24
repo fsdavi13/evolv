@@ -60,3 +60,12 @@ CREATE TABLE IF NOT EXISTS porcoes (
     gramas REAL NOT NULL,
     FOREIGN KEY (alimento_id) REFERENCES alimentos(id)
 );
+
+CREATE TABLE IF NOT EXISTS perfil (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    peso_kg REAL NOT NULL,
+    altura_cm REAL NOT NULL,
+    idade INTEGER NOT NULL,
+    sexo TEXT NOT NULL,
+    nivel_atividade TEXT NOT NULL
+);
