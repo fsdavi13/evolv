@@ -2,11 +2,17 @@ import type { LucideIcon } from "lucide-react";
 
 import "./DashboardCard.css";
 
+export type DashboardCardDestaque =
+  | "verde"
+  | "azul"
+  | "laranja";
+
 interface DashboardCardProps {
   titulo: string;
   valor: string | number;
   descricao: string;
   icone: LucideIcon;
+  destaque?: DashboardCardDestaque;
 }
 
 function DashboardCard({
@@ -14,9 +20,19 @@ function DashboardCard({
   valor,
   descricao,
   icone: Icone,
+  destaque,
 }: DashboardCardProps) {
+  const classes = [
+    "dashboard-card",
+    destaque
+      ? `dashboard-card--${destaque}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <article className="dashboard-card">
+    <article className={classes}>
       <div className="dashboard-card__header">
         <span className="dashboard-card__title">
           {titulo}

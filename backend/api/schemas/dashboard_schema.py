@@ -1,6 +1,14 @@
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel
+
+
+SituacaoCalorica = Literal[
+    "deficit",
+    "manutencao",
+    "superavit",
+]
 
 
 class ResumoAcademiaResposta(BaseModel):
@@ -24,8 +32,17 @@ class ResumoDietaResposta(BaseModel):
     gorduras_g: float
 
 
+class ResumoMetabolicoResposta(BaseModel):
+    perfil_cadastrado: bool
+    tmb: float | None
+    gasto_diario: float | None
+    saldo_calorico: float | None
+    situacao_calorica: SituacaoCalorica | None
+
+
 class DashboardResposta(BaseModel):
     data: date
     academia: ResumoAcademiaResposta
     corrida: ResumoCorridaResposta
     dieta: ResumoDietaResposta
+    metabolismo: ResumoMetabolicoResposta

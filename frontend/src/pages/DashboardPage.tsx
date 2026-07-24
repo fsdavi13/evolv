@@ -5,6 +5,7 @@ import {
   Flame,
   Gauge,
   Salad,
+  Scale,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -30,6 +31,36 @@ function formatarData(data: string): string {
     dateStyle: "long",
     timeZone: "UTC",
   }).format(new Date(`${data}T00:00:00Z`));
+}
+
+function obterDadosSituacao(
+  situacao: Dashboard["metabolismo"]["situacao_calorica"],
+) {
+  switch (situacao) {
+    case "deficit":
+      return {
+        titulo: "Déficit",
+        descricao: "Déficit calórico registrado",
+        destaque: "verde" as const,
+      };
+
+    case "manutencao":
+      return {
+        titulo: "Manutenção",
+        descricao: "Manutenção calórica registrada",
+        destaque: "azul" as const,
+      };
+
+    case "superavit":
+      return {
+        titulo: "Superávit",
+        descricao: "Superávit calórico registrado",
+        destaque: "laranja" as const,
+      };
+
+    default:
+      return null;
+  }
 }
 
 function DashboardPage() {
@@ -74,11 +105,18 @@ function DashboardPage() {
       <section className="page">
         <div className="dashboard-error">
           <strong>Erro ao carregar</strong>
-          <p>{erro}</p>
+          <p>
+            {erro ??
+              "Não foi possível carregar os dados do dashboard."}
+          </p>
         </div>
       </section>
     );
   }
+
+  const dadosSituacao = obterDadosSituacao(
+    dashboard.metabolismo.situacao_calorica,
+  );
 
   return (
     <section className="page">
@@ -149,9 +187,7 @@ function DashboardPage() {
 
           <DashboardCard
             titulo="Melhor pace"
-            valor={
-              dashboard.corrida.melhor_pace ?? "--:--"
-            }
+            valor={dashboard.corrida.melhor_pace ?? "--:--"}
             descricao="Melhor ritmo registrado no dia"
             icone={Flame}
           />
@@ -174,6 +210,48 @@ function DashboardPage() {
           />
 
           <DashboardCard
+            titulo="Gasto diário"
+            valor={
+              dashboard.metabolismo.gasto_diario !== null
+                ? `${dashboard.metabolismo.gasto_diario.toLocaleString(
+                    "pt-BR",
+                    {
+                      maximumFractionDigits: 0,
+                    },
+                  )} kcal`
+                : "Não calculado"
+            }
+            descricao={
+              dashboard.metabolismo.perfil_cadastrado
+                ? "Gasto energético diário estimado"
+                : "Cadastre seu perfil para calcular"
+            }
+            icone={Gauge}
+          />
+
+          {dadosSituacao &&
+          dashboard.metabolismo.saldo_calorico !== null ? (
+            <DashboardCard
+              titulo={dadosSituacao.titulo}
+              valor={`${Math.abs(
+                dashboard.metabolismo.saldo_calorico,
+              ).toLocaleString("pt-BR", {
+                maximumFractionDigits: 0,
+              })} kcal`}
+              descricao={dadosSituacao.descricao}
+              icone={Scale}
+              destaque={dadosSituacao.destaque}
+            />
+          ) : (
+            <DashboardCard
+              titulo="Situação"
+              valor="Não calculada"
+              descricao="Cadastre seu perfil para calcular"
+              icone={Scale}
+            />
+          )}
+
+          <DashboardCard
             titulo="Proteínas"
             valor={`${dashboard.dieta.proteinas_g.toLocaleString(
               "pt-BR",
@@ -188,6 +266,15 @@ function DashboardPage() {
               "pt-BR",
             )} g`}
             descricao="Carboidratos consumidos"
+            icone={Salad}
+          />
+
+          <DashboardCard
+            titulo="Gorduras"
+            valor={`${dashboard.dieta.gorduras_g.toLocaleString(
+              "pt-BR",
+            )} g`}
+            descricao="Gorduras consumidas"
             icone={Salad}
           />
         </div>

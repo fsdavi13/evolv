@@ -3,21 +3,36 @@ from datetime import date
 from backend.services.academia_service import AcademiaService
 from backend.services.corrida_service import CorridaService
 from backend.services.dieta_service import DietaService
+from backend.services.perfil_service import PerfilService
 
 
 class DashboardService:
+    TOLERANCIA_MANUTENCAO = 50
+
     def __init__(
         self,
         academia_service=None,
         corrida_service=None,
         dieta_service=None,
+        perfil_service=None,
     ):
-        self.academia_service = academia_service or AcademiaService()
-        self.corrida_service = corrida_service or CorridaService()
+        self.academia_service = (
+            academia_service or AcademiaService()
+        )
+        self.corrida_service = (
+            corrida_service or CorridaService()
+        )
         self.dieta_service = dieta_service or DietaService()
+        self.perfil_service = perfil_service or PerfilService()
 
     def obter_resumo(self, data_referencia=None):
-        data_referencia = self._normalizar_data(data_referencia)
+        data_referencia = self._normalizar_data(
+            data_referencia
+        )
+
+        resumo_dieta = self._obter_resumo_dieta(
+            data_referencia
+        )
 
         return {
             "data": data_referencia,
@@ -27,8 +42,9 @@ class DashboardService:
             "corrida": self._obter_resumo_corrida(
                 data_referencia
             ),
-            "dieta": self._obter_resumo_dieta(
-                data_referencia
+            "dieta": resumo_dieta,
+            "metabolismo": self._obter_resumo_metabolico(
+                resumo_dieta["calorias"]
             ),
         }
 
@@ -133,6 +149,58 @@ class DashboardService:
             "quantidade_registros": len(registros),
             **totais,
         }
+
+    def _obter_resumo_metabolico(
+        self,
+        calorias_consumidas,
+    ):
+        try:
+            perfil = self.perfil_service.buscar_perfil()
+        except ValueError:
+            return {
+                "perfil_cadastrado": False,
+                "tmb": None,
+                "gasto_diario": None,
+                "saldo_calorico": None,
+                "situacao_calorica": None,
+            }
+
+        tmb = self.perfil_service.calcular_tmb(perfil)
+
+        gasto_diario = (
+            self.perfil_service.calcular_gasto_diario(
+                perfil
+            )
+        )
+
+        saldo_calorico = round(
+            calorias_consumidas - gasto_diario,
+            2,
+        )
+
+        return {
+            "perfil_cadastrado": True,
+            "tmb": tmb,
+            "gasto_diario": gasto_diario,
+            "saldo_calorico": saldo_calorico,
+            "situacao_calorica": (
+                self._classificar_situacao_calorica(
+                    saldo_calorico
+                )
+            ),
+        }
+
+    def _classificar_situacao_calorica(
+        self,
+        saldo_calorico,
+    ):
+        if saldo_calorico > self.TOLERANCIA_MANUTENCAO:
+            return "superavit"
+
+        if saldo_calorico < -self.TOLERANCIA_MANUTENCAO:
+            return "deficit"
+
+        return "manutencao"
 
     def _obter_melhor_pace(self, corridas):
         corridas_com_pace = [

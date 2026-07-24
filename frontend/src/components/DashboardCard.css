@@ -2,13 +2,14 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-
   min-height: 150px;
   padding: 18px;
-
   background: #1a1a1e;
   border: 1px solid #2d2d33;
   border-radius: 18px;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .dashboard-card__header {
@@ -40,6 +41,42 @@
   color: #8b8b95;
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+/* Déficit */
+
+.dashboard-card--verde {
+  background: #15211b;
+  border-color: #28543b;
+}
+
+.dashboard-card--verde .dashboard-card__icon,
+.dashboard-card--verde .dashboard-card__value {
+  color: #4ade80;
+}
+
+/* Manutenção */
+
+.dashboard-card--azul {
+  background: #151d29;
+  border-color: #29466b;
+}
+
+.dashboard-card--azul .dashboard-card__icon,
+.dashboard-card--azul .dashboard-card__value {
+  color: #60a5fa;
+}
+
+/* Superávit */
+
+.dashboard-card--laranja {
+  background: #251c14;
+  border-color: #684123;
+}
+
+.dashboard-card--laranja .dashboard-card__icon,
+.dashboard-card--laranja .dashboard-card__value {
+  color: #fb923c;
 }
 
 @media (min-width: 768px) {

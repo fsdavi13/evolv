@@ -19,9 +19,23 @@ export interface ResumoDieta {
   gorduras_g: number;
 }
 
+export type SituacaoCalorica =
+  | "deficit"
+  | "manutencao"
+  | "superavit";
+
+export interface ResumoMetabolico {
+  perfil_cadastrado: boolean;
+  tmb: number | null;
+  gasto_diario: number | null;
+  saldo_calorico: number | null;
+  situacao_calorica: SituacaoCalorica | null;
+}
+
 export interface Dashboard {
   data: string;
   academia: ResumoAcademia;
   corrida: ResumoCorrida;
   dieta: ResumoDieta;
+  metabolismo: ResumoMetabolico;
 }
