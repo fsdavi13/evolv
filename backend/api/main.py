@@ -6,6 +6,9 @@ from backend.api.routers.academia_router import router as academia_router
 from backend.database.connection import inicializar_banco
 from backend.api.routers.corrida_router import router as corrida_router
 from backend.api.routers.dieta_router import router as dieta_router
+from backend.api.routers.dashboard_router import (
+    router as dashboard_router,
+)
 
 
 @asynccontextmanager
@@ -24,7 +27,7 @@ app = FastAPI(
 app.include_router(academia_router)
 app.include_router(corrida_router)
 app.include_router(dieta_router)
-
+app.include_router(dashboard_router)
 
 @app.get("/health")
 def verificar_saude() -> dict[str, str]:
