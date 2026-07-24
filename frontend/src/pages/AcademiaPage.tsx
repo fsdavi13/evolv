@@ -1,8 +1,10 @@
 import axios from "axios";
 import {
   Dumbbell,
+  Pencil,
   Plus,
   Search,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -14,20 +16,50 @@ import {
 } from "react";
 
 import {
+  adicionarExercicioDivisao,
+  atualizarDivisao,
+  buscarDivisao,
+  criarDivisao,
   criarExercicio,
+  excluirDivisao,
+  listarDivisoes,
   listarExercicios,
+  removerExercicioDivisao,
 } from "../services/academiaService";
+
 import type {
+  DivisaoTreino,
+  DivisaoTreinoDetalhada,
   Exercicio,
   ExercicioPayload,
 } from "../types/academia";
 
 import "./AcademiaPage.css";
 
-const formularioInicial: ExercicioPayload = {
+const formularioDivisaoInicial = {
+  nome: "",
+  descricao: "",
+};
+
+const formularioExercicioInicial: ExercicioPayload = {
   nome: "",
   grupo_muscular: "",
 };
+
+const gruposMuscularesPadrao = [
+  "Abdômen",
+  "Antebraço",
+  "Bíceps",
+  "Costas",
+  "Glúteos",
+  "Ombros",
+  "Panturrilhas",
+  "Peitoral",
+  "Posterior de coxa",
+  "Quadríceps",
+  "Trapézio",
+  "Tríceps",
+];
 
 function normalizarTexto(texto: string): string {
   return texto
@@ -50,96 +82,337 @@ function obterMensagemErro(erro: unknown): string {
 }
 
 function AcademiaPage() {
+  const [divisoes, setDivisoes] = useState<
+    DivisaoTreino[]
+  >([]);
+
+  const [
+    divisaoSelecionadaId,
+    setDivisaoSelecionadaId,
+  ] = useState<number | null>(null);
+
+  const [
+    divisaoSelecionada,
+    setDivisaoSelecionada,
+  ] = useState<DivisaoTreinoDetalhada | null>(
+    null,
+  );
+
+  const [divisaoEmEdicaoId, setDivisaoEmEdicaoId] =
+    useState<number | null>(null);
+
   const [exercicios, setExercicios] = useState<
     Exercicio[]
   >([]);
 
-  const [pesquisa, setPesquisa] = useState("");
-  const [formulario, setFormulario] =
-    useState<ExercicioPayload>(formularioInicial);
+  const [
+    grupoMuscularSelecionado,
+    setGrupoMuscularSelecionado,
+  ] = useState("");
 
-  const [modalAberto, setModalAberto] = useState(false);
-  const [carregando, setCarregando] = useState(true);
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
-  const [erroFormulario, setErroFormulario] =
-    useState<string | null>(null);
+  const [
+    pesquisaExercicio,
+    setPesquisaExercicio,
+  ] = useState("");
+
+  const [
+    modalDivisaoAberto,
+    setModalDivisaoAberto,
+  ] = useState(false);
+
+  const [
+    modalExercicioAberto,
+    setModalExercicioAberto,
+  ] = useState(false);
+
+  const [
+    formularioDivisao,
+    setFormularioDivisao,
+  ] = useState(formularioDivisaoInicial);
+
+  const [
+    formularioExercicio,
+    setFormularioExercicio,
+  ] = useState<ExercicioPayload>(
+    formularioExercicioInicial,
+  );
+
+  const [carregando, setCarregando] =
+    useState(true);
+
+  const [
+    carregandoDivisao,
+    setCarregandoDivisao,
+  ] = useState(false);
+
+  const [salvando, setSalvando] =
+    useState(false);
+
+  const [excluindo, setExcluindo] =
+    useState(false);
+
+  const [erro, setErro] = useState<
+    string | null
+  >(null);
+
+  const [
+    erroFormulario,
+    setErroFormulario,
+  ] = useState<string | null>(null);
 
   useEffect(() => {
-    async function carregarExercicios() {
+    async function carregarDadosIniciais() {
       try {
         setCarregando(true);
         setErro(null);
 
-        const dados = await listarExercicios();
-        setExercicios(dados);
+        const [
+          divisoesEncontradas,
+          exerciciosEncontrados,
+        ] = await Promise.all([
+          listarDivisoes(),
+          listarExercicios(),
+        ]);
+
+        setDivisoes(divisoesEncontradas);
+        setExercicios(exerciciosEncontrados);
+
+        if (divisoesEncontradas.length > 0) {
+          setDivisaoSelecionadaId(
+            divisoesEncontradas[0].id,
+          );
+        }
       } catch {
         setErro(
-          "Não foi possível carregar os exercícios.",
+          "Não foi possível carregar os dados da academia.",
         );
       } finally {
         setCarregando(false);
       }
     }
 
-    void carregarExercicios();
+    void carregarDadosIniciais();
   }, []);
 
-  const exerciciosFiltrados = useMemo(() => {
-    const termo = normalizarTexto(pesquisa);
-
-    if (!termo) {
-      return exercicios;
+  useEffect(() => {
+    if (divisaoSelecionadaId === null) {
+      setDivisaoSelecionada(null);
+      return;
     }
 
-    return exercicios.filter((exercicio) => {
-      const nome = normalizarTexto(exercicio.nome);
-      const grupo = normalizarTexto(
-        exercicio.grupo_muscular,
-      );
+    async function carregarDivisaoSelecionada() {
+      try {
+        setCarregandoDivisao(true);
+        setErro(null);
 
-      return nome.includes(termo) || grupo.includes(termo);
-    });
-  }, [exercicios, pesquisa]);
+        const divisao = await buscarDivisao(
+          divisaoSelecionadaId as number,
+        );
 
-  const sugestoes = useMemo(() => {
-    const termo = normalizarTexto(formulario.nome);
+        setDivisaoSelecionada(divisao);
+      } catch {
+        setErro(
+          "Não foi possível carregar a divisão selecionada.",
+        );
+      } finally {
+        setCarregandoDivisao(false);
+      }
+    }
 
-    if (!termo) {
+    void carregarDivisaoSelecionada();
+  }, [divisaoSelecionadaId]);
+
+  const gruposMusculares = useMemo(() => {
+    const gruposExistentes = exercicios
+      .map((exercicio) =>
+        exercicio.grupo_muscular.trim(),
+      )
+      .filter(Boolean);
+
+    const grupos = [
+      ...gruposMuscularesPadrao,
+      ...gruposExistentes,
+    ];
+
+    return Array.from(new Set(grupos)).sort(
+      (primeiro, segundo) =>
+        primeiro.localeCompare(
+          segundo,
+          "pt-BR",
+        ),
+    );
+  }, [exercicios]);
+
+  const exerciciosDisponiveis = useMemo(() => {
+    if (!grupoMuscularSelecionado) {
       return [];
     }
 
-    return exercicios
-      .filter((exercicio) =>
-        normalizarTexto(exercicio.nome).includes(termo),
-      )
-      .slice(0, 5);
-  }, [exercicios, formulario.nome]);
+    const idsJaAdicionados = new Set(
+      divisaoSelecionada?.exercicios.map(
+        (item) => item.exercicio_id,
+      ) ?? [],
+    );
 
-  function abrirModal() {
-    setFormulario(formularioInicial);
+    const grupoNormalizado = normalizarTexto(
+      grupoMuscularSelecionado,
+    );
+
+    const termo = normalizarTexto(
+      pesquisaExercicio,
+    );
+
+    return exercicios.filter((exercicio) => {
+      if (idsJaAdicionados.has(exercicio.id)) {
+        return false;
+      }
+
+      const pertenceAoGrupo =
+        normalizarTexto(
+          exercicio.grupo_muscular,
+        ) === grupoNormalizado;
+
+      if (!pertenceAoGrupo) {
+        return false;
+      }
+
+      if (!termo) {
+        return true;
+      }
+
+      return normalizarTexto(
+        exercicio.nome,
+      ).includes(termo);
+    });
+  }, [
+    divisaoSelecionada,
+    exercicios,
+    grupoMuscularSelecionado,
+    pesquisaExercicio,
+  ]);
+
+  const sugestoesExercicio = useMemo(() => {
+    const termo = normalizarTexto(
+      formularioExercicio.nome,
+    );
+
+    if (!termo || !grupoMuscularSelecionado) {
+      return [];
+    }
+
+    const idsJaAdicionados = new Set(
+      divisaoSelecionada?.exercicios.map(
+        (item) => item.exercicio_id,
+      ) ?? [],
+    );
+
+    const grupoNormalizado = normalizarTexto(
+      grupoMuscularSelecionado,
+    );
+
+    return exercicios
+      .filter((exercicio) => {
+        if (idsJaAdicionados.has(exercicio.id)) {
+          return false;
+        }
+
+        const pertenceAoGrupo =
+          normalizarTexto(
+            exercicio.grupo_muscular,
+          ) === grupoNormalizado;
+
+        const nomeParecido =
+          normalizarTexto(
+            exercicio.nome,
+          ).includes(termo);
+
+        return pertenceAoGrupo && nomeParecido;
+      })
+      .slice(0, 5);
+  }, [
+    divisaoSelecionada,
+    exercicios,
+    formularioExercicio.nome,
+    grupoMuscularSelecionado,
+  ]);
+
+  function abrirModalCriarDivisao() {
+    setDivisaoEmEdicaoId(null);
+    setFormularioDivisao(
+      formularioDivisaoInicial,
+    );
     setErroFormulario(null);
-    setModalAberto(true);
+    setModalDivisaoAberto(true);
   }
 
-  function fecharModal() {
+  function abrirModalEditarDivisao() {
+    if (!divisaoSelecionada) {
+      return;
+    }
+
+    setDivisaoEmEdicaoId(
+      divisaoSelecionada.id,
+    );
+
+    setFormularioDivisao({
+      nome: divisaoSelecionada.nome,
+      descricao:
+        divisaoSelecionada.descricao ?? "",
+    });
+
+    setErroFormulario(null);
+    setModalDivisaoAberto(true);
+  }
+
+  function fecharModalDivisao() {
     if (salvando) {
       return;
     }
 
-    setModalAberto(false);
-    setFormulario(formularioInicial);
+    setModalDivisaoAberto(false);
+    setDivisaoEmEdicaoId(null);
+    setFormularioDivisao(
+      formularioDivisaoInicial,
+    );
     setErroFormulario(null);
   }
 
-  function atualizarCampo(
+  function abrirModalExercicio() {
+    if (!divisaoSelecionada) {
+      return;
+    }
+
+    setGrupoMuscularSelecionado("");
+    setPesquisaExercicio("");
+    setFormularioExercicio(
+      formularioExercicioInicial,
+    );
+    setErroFormulario(null);
+    setModalExercicioAberto(true);
+  }
+
+  function fecharModalExercicio() {
+    if (salvando) {
+      return;
+    }
+
+    setModalExercicioAberto(false);
+    setGrupoMuscularSelecionado("");
+    setPesquisaExercicio("");
+    setFormularioExercicio(
+      formularioExercicioInicial,
+    );
+    setErroFormulario(null);
+  }
+
+  function atualizarCampoDivisao(
     evento: ChangeEvent<
-      HTMLInputElement | HTMLSelectElement
+      HTMLInputElement | HTMLTextAreaElement
     >,
   ) {
     const { name, value } = evento.target;
 
-    setFormulario((dadosAtuais) => ({
+    setFormularioDivisao((dadosAtuais) => ({
       ...dadosAtuais,
       [name]: value,
     }));
@@ -147,25 +420,47 @@ function AcademiaPage() {
     setErroFormulario(null);
   }
 
-  function selecionarSugestao(exercicio: Exercicio) {
-    setFormulario({
-      nome: exercicio.nome,
-      grupo_muscular: exercicio.grupo_muscular,
-    });
+  function atualizarNomeExercicio(
+    evento: ChangeEvent<HTMLInputElement>,
+  ) {
+    setFormularioExercicio(
+      (dadosAtuais) => ({
+        ...dadosAtuais,
+        nome: evento.target.value,
+      }),
+    );
+
+    setErroFormulario(null);
   }
 
-  async function enviarFormulario(
+  function selecionarGrupoMuscular(
+    evento: ChangeEvent<HTMLSelectElement>,
+  ) {
+    const grupo = evento.target.value;
+
+    setGrupoMuscularSelecionado(grupo);
+    setPesquisaExercicio("");
+
+    setFormularioExercicio({
+      nome: "",
+      grupo_muscular: grupo,
+    });
+
+    setErroFormulario(null);
+  }
+
+  async function enviarDivisao(
     evento: FormEvent<HTMLFormElement>,
   ) {
     evento.preventDefault();
 
-    const nome = formulario.nome.trim();
-    const grupoMuscular =
-      formulario.grupo_muscular.trim();
+    const nome = formularioDivisao.nome.trim();
+    const descricao =
+      formularioDivisao.descricao.trim();
 
-    if (!nome || !grupoMuscular) {
+    if (!nome) {
       setErroFormulario(
-        "Preencha o nome e o grupo muscular.",
+        "Informe o nome da divisão.",
       );
       return;
     }
@@ -174,22 +469,237 @@ function AcademiaPage() {
       setSalvando(true);
       setErroFormulario(null);
 
-      const exercicioCriado = await criarExercicio({
+      const dados = {
         nome,
-        grupo_muscular: grupoMuscular,
-      });
+        descricao: descricao || null,
+      };
 
-      setExercicios((exerciciosAtuais) =>
-        [...exerciciosAtuais, exercicioCriado].sort(
-          (primeiro, segundo) =>
-            primeiro.nome.localeCompare(
-              segundo.nome,
-              "pt-BR",
-            ),
-        ),
+      if (divisaoEmEdicaoId !== null) {
+        const divisaoAtualizada =
+          await atualizarDivisao(
+            divisaoEmEdicaoId,
+            dados,
+          );
+
+        setDivisoes((divisoesAtuais) =>
+          divisoesAtuais.map((divisao) =>
+            divisao.id ===
+            divisaoAtualizada.id
+              ? divisaoAtualizada
+              : divisao,
+          ),
+        );
+
+        setDivisaoSelecionada(
+          (divisaoAtual) => {
+            if (
+              !divisaoAtual ||
+              divisaoAtual.id !==
+                divisaoAtualizada.id
+            ) {
+              return divisaoAtual;
+            }
+
+            return {
+              ...divisaoAtual,
+              nome: divisaoAtualizada.nome,
+              descricao:
+                divisaoAtualizada.descricao,
+            };
+          },
+        );
+      } else {
+        const novaDivisao =
+          await criarDivisao(dados);
+
+        setDivisoes((divisoesAtuais) => [
+          ...divisoesAtuais,
+          novaDivisao,
+        ]);
+
+        setDivisaoSelecionadaId(
+          novaDivisao.id,
+        );
+      }
+
+      setModalDivisaoAberto(false);
+      setDivisaoEmEdicaoId(null);
+      setFormularioDivisao(
+        formularioDivisaoInicial,
+      );
+    } catch (erroOperacao) {
+      setErroFormulario(
+        obterMensagemErro(erroOperacao),
+      );
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function removerDivisaoSelecionada() {
+    if (!divisaoSelecionada || excluindo) {
+      return;
+    }
+
+    const confirmou = window.confirm(
+      `Deseja excluir a divisão "${divisaoSelecionada.nome}"? Os exercícios continuarão disponíveis no catálogo.`,
+    );
+
+    if (!confirmou) {
+      return;
+    }
+
+    try {
+      setExcluindo(true);
+      setErro(null);
+
+      await excluirDivisao(
+        divisaoSelecionada.id,
       );
 
-      fecharModal();
+      const divisoesRestantes =
+        divisoes.filter(
+          (divisao) =>
+            divisao.id !==
+            divisaoSelecionada.id,
+        );
+
+      setDivisoes(divisoesRestantes);
+      setDivisaoSelecionada(null);
+
+      setDivisaoSelecionadaId(
+        divisoesRestantes.length > 0
+          ? divisoesRestantes[0].id
+          : null,
+      );
+    } catch (erroExclusao) {
+      setErro(
+        obterMensagemErro(erroExclusao),
+      );
+    } finally {
+      setExcluindo(false);
+    }
+  }
+
+  async function adicionarExercicioExistente(
+    exercicio: Exercicio,
+  ) {
+    if (!divisaoSelecionada || salvando) {
+      return;
+    }
+
+    try {
+      setSalvando(true);
+      setErroFormulario(null);
+
+      const associacao =
+        await adicionarExercicioDivisao(
+          divisaoSelecionada.id,
+          exercicio.id,
+        );
+
+      setDivisaoSelecionada(
+        (divisaoAtual) => {
+          if (!divisaoAtual) {
+            return divisaoAtual;
+          }
+
+          return {
+            ...divisaoAtual,
+            exercicios: [
+              ...divisaoAtual.exercicios,
+              associacao,
+            ],
+          };
+        },
+      );
+
+      setPesquisaExercicio("");
+      setFormularioExercicio({
+        nome: "",
+        grupo_muscular:
+          grupoMuscularSelecionado,
+      });
+    } catch (erroAdicao) {
+      setErroFormulario(
+        obterMensagemErro(erroAdicao),
+      );
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function criarEAdicionarExercicio(
+    evento: FormEvent<HTMLFormElement>,
+  ) {
+    evento.preventDefault();
+
+    if (!divisaoSelecionada) {
+      return;
+    }
+
+    const nome =
+      formularioExercicio.nome.trim();
+
+    if (!grupoMuscularSelecionado) {
+      setErroFormulario(
+        "Selecione o grupo muscular.",
+      );
+      return;
+    }
+
+    if (!nome) {
+      setErroFormulario(
+        "Informe o nome do exercício.",
+      );
+      return;
+    }
+
+    try {
+      setSalvando(true);
+      setErroFormulario(null);
+
+      const novoExercicio =
+        await criarExercicio({
+          nome,
+          grupo_muscular:
+            grupoMuscularSelecionado,
+        });
+
+      setExercicios((exerciciosAtuais) => [
+        ...exerciciosAtuais,
+        novoExercicio,
+      ]);
+
+      const associacao =
+        await adicionarExercicioDivisao(
+          divisaoSelecionada.id,
+          novoExercicio.id,
+        );
+
+      setDivisaoSelecionada(
+        (divisaoAtual) => {
+          if (!divisaoAtual) {
+            return divisaoAtual;
+          }
+
+          return {
+            ...divisaoAtual,
+            exercicios: [
+              ...divisaoAtual.exercicios,
+              associacao,
+            ],
+          };
+        },
+      );
+
+      setFormularioExercicio({
+        nome: "",
+        grupo_muscular:
+          grupoMuscularSelecionado,
+      });
+
+      setPesquisaExercicio("");
     } catch (erroCriacao) {
       setErroFormulario(
         obterMensagemErro(erroCriacao),
@@ -199,49 +709,82 @@ function AcademiaPage() {
     }
   }
 
+  async function removerExercicio(
+    exercicioId: number,
+  ) {
+    if (!divisaoSelecionada) {
+      return;
+    }
+
+    try {
+      setErro(null);
+
+      await removerExercicioDivisao(
+        divisaoSelecionada.id,
+        exercicioId,
+      );
+
+      setDivisaoSelecionada(
+        (divisaoAtual) => {
+          if (!divisaoAtual) {
+            return divisaoAtual;
+          }
+
+          const exerciciosRestantes =
+            divisaoAtual.exercicios
+              .filter(
+                (item) =>
+                  item.exercicio_id !==
+                  exercicioId,
+              )
+              .map((item, indice) => ({
+                ...item,
+                ordem: indice + 1,
+              }));
+
+          return {
+            ...divisaoAtual,
+            exercicios:
+              exerciciosRestantes,
+          };
+        },
+      );
+    } catch (erroRemocao) {
+      setErro(
+        obterMensagemErro(erroRemocao),
+      );
+    }
+  }
+
   return (
     <section className="page">
       <header className="page__header academia-header">
         <div>
-          <p className="page__eyebrow">Treinamento</p>
+          <p className="page__eyebrow">
+            Treinamento
+          </p>
+
           <h1>Academia</h1>
+
           <p>
-            Cadastre seus exercícios e acompanhe seus
-            treinos.
+            Organize sua divisão e seus
+            exercícios.
           </p>
         </div>
 
         <button
-          className="academia-new-button"
+          className="academia-primary-button"
           type="button"
-          onClick={abrirModal}
+          onClick={abrirModalCriarDivisao}
         >
-          <Plus size={18} aria-hidden="true" />
-          Novo exercício
+          <Plus size={18} />
+          Nova divisão
         </button>
       </header>
 
-      <div className="academia-toolbar">
-        <Search
-          className="academia-search__icon"
-          size={19}
-          aria-hidden="true"
-        />
-
-        <input
-          type="search"
-          value={pesquisa}
-          onChange={(evento) =>
-            setPesquisa(evento.target.value)
-          }
-          placeholder="Pesquisar por exercício ou grupo muscular"
-          aria-label="Pesquisar exercícios"
-        />
-      </div>
-
       {carregando && (
         <p className="academia-status">
-          Carregando exercícios...
+          Carregando academia...
         </p>
       )}
 
@@ -253,68 +796,211 @@ function AcademiaPage() {
 
       {!carregando &&
         !erro &&
-        exerciciosFiltrados.length === 0 && (
+        divisoes.length === 0 && (
           <div className="academia-empty">
             <div className="academia-empty__icon">
-              <Dumbbell size={26} aria-hidden="true" />
+              <Dumbbell size={26} />
             </div>
 
             <h2>
-              {pesquisa
-                ? "Nenhum exercício encontrado"
-                : "Nenhum exercício cadastrado"}
+              Nenhuma divisão cadastrada
             </h2>
 
             <p>
-              {pesquisa
-                ? "Tente pesquisar por outro nome ou grupo muscular."
-                : "Cadastre seu primeiro exercício para começar."}
+              Crie sua primeira divisão, como
+              Segunda, Push ou Treino A.
             </p>
 
-            {!pesquisa && (
-              <button
-                type="button"
-                onClick={abrirModal}
-              >
-                <Plus size={17} aria-hidden="true" />
-                Cadastrar exercício
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={
+                abrirModalCriarDivisao
+              }
+            >
+              <Plus size={17} />
+              Criar divisão
+            </button>
           </div>
         )}
 
       {!carregando &&
-        !erro &&
-        exerciciosFiltrados.length > 0 && (
-          <div className="exercise-grid">
-            {exerciciosFiltrados.map((exercicio) => (
-              <article
-                className="exercise-card"
-                key={exercicio.id}
-              >
-                <div className="exercise-card__icon">
-                  <Dumbbell
-                    size={21}
-                    aria-hidden="true"
-                  />
-                </div>
+        divisoes.length > 0 && (
+          <>
+            <nav
+              className="workout-tabs"
+              aria-label="Divisões de treino"
+            >
+              {divisoes.map((divisao) => (
+                <button
+                  key={divisao.id}
+                  type="button"
+                  className={
+                    divisaoSelecionadaId ===
+                    divisao.id
+                      ? "workout-tab workout-tab--active"
+                      : "workout-tab"
+                  }
+                  onClick={() =>
+                    setDivisaoSelecionadaId(
+                      divisao.id,
+                    )
+                  }
+                >
+                  {divisao.nome}
+                </button>
+              ))}
 
-                <div className="exercise-card__content">
-                  <h2>{exercicio.nome}</h2>
-                  <p>{exercicio.grupo_muscular}</p>
+              <button
+                type="button"
+                className="workout-tab workout-tab--add"
+                onClick={
+                  abrirModalCriarDivisao
+                }
+                aria-label="Adicionar divisão"
+              >
+                <Plus size={17} />
+              </button>
+            </nav>
+
+            {carregandoDivisao && (
+              <p className="academia-status">
+                Carregando divisão...
+              </p>
+            )}
+
+            {!carregandoDivisao &&
+              divisaoSelecionada && (
+                <div className="workout-panel">
+                  <header className="workout-panel__header">
+                    <div>
+                      <h2>
+                        {
+                          divisaoSelecionada.nome
+                        }
+                      </h2>
+
+                      <p>
+                        {divisaoSelecionada.descricao ||
+                          "Sem descrição cadastrada."}
+                      </p>
+                    </div>
+
+                    <div className="workout-panel__actions">
+                      <button
+                        className="workout-action workout-action--secondary"
+                        type="button"
+                        onClick={
+                          abrirModalEditarDivisao
+                        }
+                      >
+                        <Pencil size={16} />
+                        Editar
+                      </button>
+
+                      <button
+                        className="workout-action workout-action--danger"
+                        type="button"
+                        disabled={excluindo}
+                        onClick={() =>
+                          void removerDivisaoSelecionada()
+                        }
+                      >
+                        <Trash2 size={16} />
+
+                        {excluindo
+                          ? "Excluindo..."
+                          : "Excluir"}
+                      </button>
+
+                      <button
+                        className="workout-action workout-action--primary"
+                        type="button"
+                        onClick={
+                          abrirModalExercicio
+                        }
+                      >
+                        <Plus size={17} />
+                        Adicionar exercício
+                      </button>
+                    </div>
+                  </header>
+
+                  {divisaoSelecionada
+                    .exercicios.length ===
+                  0 ? (
+                    <div className="workout-empty">
+                      <p>
+                        Essa divisão ainda não
+                        possui exercícios.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={
+                          abrirModalExercicio
+                        }
+                      >
+                        Adicionar primeiro
+                        exercício
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="workout-exercises">
+                      {divisaoSelecionada.exercicios.map(
+                        (item) => (
+                          <article
+                            key={item.id}
+                            className="workout-exercise"
+                          >
+                            <div className="workout-exercise__order">
+                              {item.ordem}
+                            </div>
+
+                            <div className="workout-exercise__content">
+                              <h3>
+                                {item.nome}
+                              </h3>
+
+                              <p>
+                                {
+                                  item.grupo_muscular
+                                }
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="workout-exercise__remove"
+                              onClick={() =>
+                                void removerExercicio(
+                                  item.exercicio_id,
+                                )
+                              }
+                              aria-label={`Remover ${item.nome}`}
+                            >
+                              <Trash2
+                                size={17}
+                              />
+                            </button>
+                          </article>
+                        ),
+                      )}
+                    </div>
+                  )}
                 </div>
-              </article>
-            ))}
-          </div>
+              )}
+          </>
         )}
 
-      {modalAberto && (
+      {modalDivisaoAberto && (
         <div
           className="exercise-modal-backdrop"
-          role="presentation"
           onMouseDown={(evento) => {
-            if (evento.target === evento.currentTarget) {
-              fecharModal();
+            if (
+              evento.target ===
+              evento.currentTarget
+            ) {
+              fecharModalDivisao();
             }
           }}
         >
@@ -322,29 +1008,33 @@ function AcademiaPage() {
             className="exercise-modal"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="exercise-modal-title"
+            aria-labelledby="modal-divisao-titulo"
           >
             <header className="exercise-modal__header">
               <div>
-                <p>Novo cadastro</p>
-                <h2 id="exercise-modal-title">
-                  Novo exercício
+                <p>Organização</p>
+
+                <h2 id="modal-divisao-titulo">
+                  {divisaoEmEdicaoId !==
+                  null
+                    ? "Editar divisão"
+                    : "Nova divisão"}
                 </h2>
               </div>
 
               <button
                 type="button"
-                onClick={fecharModal}
+                onClick={fecharModalDivisao}
                 disabled={salvando}
                 aria-label="Fechar modal"
               >
-                <X size={20} aria-hidden="true" />
+                <X size={20} />
               </button>
             </header>
 
             <form
               className="exercise-form"
-              onSubmit={enviarFormulario}
+              onSubmit={enviarDivisao}
             >
               <label className="exercise-field">
                 <span>Nome</span>
@@ -352,55 +1042,31 @@ function AcademiaPage() {
                 <input
                   autoFocus
                   required
-                  type="text"
                   name="nome"
-                  value={formulario.nome}
-                  onChange={atualizarCampo}
-                  placeholder="Ex.: Supino reto"
-                  maxLength={100}
+                  value={
+                    formularioDivisao.nome
+                  }
+                  onChange={
+                    atualizarCampoDivisao
+                  }
+                  placeholder="Ex.: Segunda"
+                  maxLength={50}
                 />
               </label>
 
-              {sugestoes.length > 0 && (
-                <div className="exercise-suggestions">
-                  <span>Exercícios parecidos</span>
-
-                  <div className="exercise-suggestions__list">
-                    {sugestoes.map((exercicio) => (
-                      <button
-                        key={exercicio.id}
-                        type="button"
-                        onClick={() =>
-                          selecionarSugestao(exercicio)
-                        }
-                      >
-                        <strong>{exercicio.nome}</strong>
-                        <small>
-                          {exercicio.grupo_muscular}
-                        </small>
-                      </button>
-                    ))}
-                  </div>
-
-                  <p>
-                    Você ainda pode criar “
-                    <strong>{formulario.nome.trim()}</strong>
-                    ” como um exercício diferente.
-                  </p>
-                </div>
-              )}
-
               <label className="exercise-field">
-                <span>Grupo muscular</span>
+                <span>Descrição</span>
 
-                <input
-                  required
-                  type="text"
-                  name="grupo_muscular"
-                  value={formulario.grupo_muscular}
-                  onChange={atualizarCampo}
-                  placeholder="Ex.: Peitoral"
-                  maxLength={60}
+                <textarea
+                  name="descricao"
+                  value={
+                    formularioDivisao.descricao
+                  }
+                  onChange={
+                    atualizarCampoDivisao
+                  }
+                  placeholder="Ex.: Peito, ombro e tríceps"
+                  maxLength={150}
                 />
               </label>
 
@@ -417,7 +1083,9 @@ function AcademiaPage() {
                 <button
                   className="exercise-button exercise-button--secondary"
                   type="button"
-                  onClick={fecharModal}
+                  onClick={
+                    fecharModalDivisao
+                  }
                   disabled={salvando}
                 >
                   Cancelar
@@ -428,19 +1096,295 @@ function AcademiaPage() {
                   type="submit"
                   disabled={salvando}
                 >
-                  <Plus size={17} aria-hidden="true" />
-
                   {salvando
-                    ? "Criando..."
-                    : formulario.nome.trim()
-                      ? `Criar “${formulario.nome.trim()}”`
-                      : "Criar exercício"}
+                    ? "Salvando..."
+                    : divisaoEmEdicaoId !==
+                        null
+                      ? "Salvar alterações"
+                      : "Criar divisão"}
                 </button>
               </footer>
             </form>
           </section>
         </div>
       )}
+
+      {modalExercicioAberto &&
+        divisaoSelecionada && (
+          <div
+            className="exercise-modal-backdrop"
+            onMouseDown={(evento) => {
+              if (
+                evento.target ===
+                evento.currentTarget
+              ) {
+                fecharModalExercicio();
+              }
+            }}
+          >
+            <section
+              className="exercise-modal exercise-modal--large"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="modal-exercicio-titulo"
+            >
+              <header className="exercise-modal__header">
+                <div>
+                  <p>
+                    {
+                      divisaoSelecionada.nome
+                    }
+                  </p>
+
+                  <h2 id="modal-exercicio-titulo">
+                    Adicionar exercício
+                  </h2>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    fecharModalExercicio
+                  }
+                  disabled={salvando}
+                  aria-label="Fechar modal"
+                >
+                  <X size={20} />
+                </button>
+              </header>
+
+              <div className="exercise-picker">
+                <div className="exercise-picker__catalog">
+                  <label className="exercise-field">
+                    <span>
+                      Grupo muscular
+                    </span>
+
+                    <select
+                      value={
+                        grupoMuscularSelecionado
+                      }
+                      onChange={
+                        selecionarGrupoMuscular
+                      }
+                    >
+                      <option value="">
+                        Selecione um grupo
+                        muscular
+                      </option>
+
+                      {gruposMusculares.map(
+                        (grupo) => (
+                          <option
+                            key={grupo}
+                            value={grupo}
+                          >
+                            {grupo}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+
+                  {!grupoMuscularSelecionado && (
+                    <div className="exercise-group-placeholder">
+                      <Dumbbell size={24} />
+
+                      <p>
+                        Selecione primeiro o
+                        grupo muscular para
+                        visualizar os
+                        exercícios.
+                      </p>
+                    </div>
+                  )}
+
+                  {grupoMuscularSelecionado && (
+                    <>
+                      <div className="academia-toolbar">
+                        <Search
+                          className="academia-search__icon"
+                          size={18}
+                        />
+
+                        <input
+                          type="search"
+                          value={
+                            pesquisaExercicio
+                          }
+                          onChange={(evento) =>
+                            setPesquisaExercicio(
+                              evento.target
+                                .value,
+                            )
+                          }
+                          placeholder={`Pesquisar em ${grupoMuscularSelecionado}`}
+                        />
+                      </div>
+
+                      <div className="exercise-picker__list">
+                        {exerciciosDisponiveis.length ===
+                        0 ? (
+                          <p className="exercise-picker__empty">
+                            Nenhum exercício
+                            disponível nesse
+                            grupo.
+                          </p>
+                        ) : (
+                          exerciciosDisponiveis.map(
+                            (exercicio) => (
+                              <button
+                                key={
+                                  exercicio.id
+                                }
+                                type="button"
+                                disabled={
+                                  salvando
+                                }
+                                onClick={() =>
+                                  void adicionarExercicioExistente(
+                                    exercicio,
+                                  )
+                                }
+                              >
+                                <div>
+                                  <strong>
+                                    {
+                                      exercicio.nome
+                                    }
+                                  </strong>
+
+                                  <small>
+                                    {
+                                      exercicio.grupo_muscular
+                                    }
+                                  </small>
+                                </div>
+
+                                <Plus
+                                  size={17}
+                                />
+                              </button>
+                            ),
+                          )
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {grupoMuscularSelecionado && (
+                  <>
+                    <div className="exercise-picker__divider">
+                      ou crie um novo em{" "}
+                      {
+                        grupoMuscularSelecionado
+                      }
+                    </div>
+
+                    <form
+                      className="exercise-form exercise-form--embedded"
+                      onSubmit={
+                        criarEAdicionarExercicio
+                      }
+                    >
+                      <label className="exercise-field">
+                        <span>Nome</span>
+
+                        <input
+                          name="nome"
+                          value={
+                            formularioExercicio.nome
+                          }
+                          onChange={
+                            atualizarNomeExercicio
+                          }
+                          placeholder="Ex.: Supino Smith"
+                          maxLength={100}
+                        />
+                      </label>
+
+                      {sugestoesExercicio.length >
+                        0 && (
+                        <div className="exercise-suggestions">
+                          <span>
+                            Exercícios parecidos
+                          </span>
+
+                          <div className="exercise-suggestions__list">
+                            {sugestoesExercicio.map(
+                              (exercicio) => (
+                                <button
+                                  key={
+                                    exercicio.id
+                                  }
+                                  type="button"
+                                  disabled={
+                                    salvando
+                                  }
+                                  onClick={() =>
+                                    void adicionarExercicioExistente(
+                                      exercicio,
+                                    )
+                                  }
+                                >
+                                  <strong>
+                                    {
+                                      exercicio.nome
+                                    }
+                                  </strong>
+
+                                  <small>
+                                    {
+                                      exercicio.grupo_muscular
+                                    }
+                                  </small>
+                                </button>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="exercise-selected-group">
+                        <span>
+                          Grupo muscular
+                        </span>
+
+                        <strong>
+                          {
+                            grupoMuscularSelecionado
+                          }
+                        </strong>
+                      </div>
+
+                      {erroFormulario && (
+                        <div
+                          className="academia-message academia-message--error"
+                          role="alert"
+                        >
+                          {erroFormulario}
+                        </div>
+                      )}
+
+                      <button
+                        className="exercise-button exercise-button--primary"
+                        type="submit"
+                        disabled={salvando}
+                      >
+                        <Plus size={17} />
+
+                        {salvando
+                          ? "Adicionando..."
+                          : "Criar e adicionar"}
+                      </button>
+                    </form>
+                  </>
+                )}
+              </div>
+            </section>
+          </div>
+        )}
     </section>
   );
 }
