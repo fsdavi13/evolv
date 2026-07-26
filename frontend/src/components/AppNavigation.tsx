@@ -17,11 +17,6 @@ const navigationItems = [
     icon: House,
   },
 
-  {
-      label: "Treino",
-      path: "/treino",
-      icon: Dumbbell,
-    },
     {
       label: "Academia",
       path: "/academia",

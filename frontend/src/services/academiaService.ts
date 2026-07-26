@@ -7,17 +7,14 @@ import type {
   Exercicio,
   ExercicioDivisao,
   ExercicioPayload,
-} from "../types/academia";
-
-import axios from "axios";
-
-import type {
   FinalizarTreinoPayload,
   IniciarTreinoPayload,
   Serie,
   SeriePayload,
   Treino,
 } from "../types/academia";
+
+import axios from "axios";
 
 export async function listarExercicios(): Promise<
   Exercicio[]

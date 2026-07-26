@@ -1,7 +1,9 @@
 import axios from "axios";
+
 import {
   Dumbbell,
   Pencil,
+  Play,
   Plus,
   Search,
   Trash2,
@@ -25,6 +27,7 @@ import {
   listarDivisoes,
   listarExercicios,
   removerExercicioDivisao,
+  iniciarTreino,
 } from "../services/academiaService";
 
 import type {
@@ -35,6 +38,7 @@ import type {
 } from "../types/academia";
 
 import "./AcademiaPage.css";
+import { useNavigate } from "react-router-dom";
 
 const formularioDivisaoInicial = {
   nome: "",
@@ -82,6 +86,11 @@ function obterMensagemErro(erro: unknown): string {
 }
 
 function AcademiaPage() {
+  const navigate = useNavigate();
+
+  const [iniciandoTreino, setIniciandoTreino] =
+  useState(false);
+
   const [divisoes, setDivisoes] = useState<
     DivisaoTreino[]
   >([]);
@@ -756,6 +765,32 @@ function AcademiaPage() {
     }
   }
 
+async function iniciarTreinoSelecionado() {
+  if (
+    !divisaoSelecionada ||
+    iniciandoTreino
+  ) {
+    return;
+  }
+
+  try {
+    setIniciandoTreino(true);
+    setErro(null);
+
+    await iniciarTreino({
+      divisao_id: divisaoSelecionada.id,
+    });
+
+    navigate("/treino");
+  } catch (erroInicio) {
+    setErro(
+      obterMensagemErro(erroInicio),
+    );
+  } finally {
+    setIniciandoTreino(false);
+  }
+}
+
   return (
     <section className="page">
       <header className="page__header academia-header">
@@ -887,11 +922,32 @@ function AcademiaPage() {
 
                     <div className="workout-panel__actions">
                       <button
+                        className="workout-action workout-action--primary"
+                        type="button"
+                        disabled={
+                          iniciandoTreino ||
+                          divisaoSelecionada.exercicios.length === 0
+                        }
+                        onClick={() =>
+                          void iniciarTreinoSelecionado()
+                        }
+                        title={
+                          divisaoSelecionada.exercicios.length === 0
+                            ? "Adicione exercícios antes de iniciar"
+                            : undefined
+                        }
+                      >
+                        <Play size={17} />
+
+                        {iniciandoTreino
+                          ? "Iniciando..."
+                          : "Iniciar treino"}
+                      </button>
+
+                      <button
                         className="workout-action workout-action--secondary"
                         type="button"
-                        onClick={
-                          abrirModalEditarDivisao
-                        }
+                        onClick={abrirModalEditarDivisao}
                       >
                         <Pencil size={16} />
                         Editar
@@ -913,11 +969,9 @@ function AcademiaPage() {
                       </button>
 
                       <button
-                        className="workout-action workout-action--primary"
+                        className="workout-action workout-action--secondary"
                         type="button"
-                        onClick={
-                          abrirModalExercicio
-                        }
+                        onClick={abrirModalExercicio}
                       >
                         <Plus size={17} />
                         Adicionar exercício
