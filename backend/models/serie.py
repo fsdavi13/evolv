@@ -2,10 +2,18 @@ from datetime import date
 
 
 class Serie:
-
-
-    def __init__(self, exercicio_id, data, peso, repeticoes, observacoes=None, id=None):
+    def __init__(
+        self,
+        exercicio_id,
+        data,
+        peso,
+        repeticoes,
+        observacoes=None,
+        id=None,
+        treino_id=None,
+    ):
         self.id = id
+        self.treino_id = treino_id
         self.exercicio_id = exercicio_id
         self.data = data
         self.peso = peso

@@ -13,6 +13,10 @@ from backend.api.schemas.academia_schema import (
     DivisaoResposta,
     ExercicioDivisaoEntrada,
     ExercicioDivisaoResposta,
+    TreinoDetalhadoResposta,
+    TreinoEntrada,
+    TreinoFinalizarEntrada,
+    TreinoResposta,
 )
 
 from backend.services.academia_service import AcademiaService
@@ -39,6 +43,7 @@ def converter_exercicio(exercicio) -> ExercicioResposta:
 def converter_serie(serie) -> SerieResposta:
     return SerieResposta(
         id=serie.id,
+        treino_id=serie.treino_id,
         exercicio_id=serie.exercicio_id,
         data=serie.data,
         peso=serie.peso,
@@ -47,6 +52,16 @@ def converter_serie(serie) -> SerieResposta:
         volume=serie.calcular_volume(),
     )
 
+def converter_treino(treino) -> TreinoResposta:
+    return TreinoResposta(
+        id=treino.id,
+        divisao_id=treino.divisao_id,
+        divisao_nome=treino.divisao_nome,
+        iniciado_em=treino.iniciado_em,
+        finalizado_em=treino.finalizado_em,
+        observacoes=treino.observacoes,
+        finalizado=treino.finalizado,
+    )
 
 def converter_divisao(
     divisao,
@@ -378,6 +393,7 @@ def registrar_serie(
             peso=dados.peso,
             repeticoes=dados.repeticoes,
             observacoes=dados.observacoes,
+            treino_id=dados.treino_id,
         )
         return converter_serie(serie)
     except ValueError as erro:
@@ -442,6 +458,154 @@ def excluir_serie(
 ):
     try:
         service.excluir_serie(serie_id)
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro),
+        ) from erro
+
+@router.post(
+    "/treinos",
+    response_model=TreinoResposta,
+    status_code=status.HTTP_201_CREATED,
+)
+def iniciar_treino(
+    dados: TreinoEntrada,
+    service: AcademiaServiceDependencia,
+):
+    try:
+        treino = service.iniciar_treino(
+            divisao_id=dados.divisao_id,
+            observacoes=dados.observacoes,
+        )
+
+        return converter_treino(treino)
+
+    except ValueError as erro:
+        mensagem = str(erro)
+
+        codigo = (
+            status.HTTP_404_NOT_FOUND
+            if mensagem
+            == "Divisão de treino não encontrada."
+            else status.HTTP_400_BAD_REQUEST
+        )
+
+        raise HTTPException(
+            status_code=codigo,
+            detail=mensagem,
+        ) from erro
+
+
+@router.get(
+    "/treinos",
+    response_model=list[TreinoResposta],
+)
+def listar_treinos(
+    service: AcademiaServiceDependencia,
+):
+    return [
+        converter_treino(treino)
+        for treino in service.listar_treinos()
+    ]
+
+
+@router.get(
+    "/treinos/em-andamento",
+    response_model=TreinoResposta,
+)
+def buscar_treino_em_andamento(
+    service: AcademiaServiceDependencia,
+):
+    try:
+        treino = (
+            service.buscar_treino_em_andamento()
+        )
+
+        return converter_treino(treino)
+
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro),
+        ) from erro
+
+
+@router.get(
+    "/treinos/{treino_id}",
+    response_model=TreinoDetalhadoResposta,
+)
+def buscar_treino(
+    treino_id: int,
+    service: AcademiaServiceDependencia,
+):
+    try:
+        treino, series = (
+            service.buscar_treino_detalhado(
+                treino_id
+            )
+        )
+
+        return TreinoDetalhadoResposta(
+            **converter_treino(
+                treino
+            ).model_dump(),
+            series=[
+                converter_serie(serie)
+                for serie in series
+            ],
+        )
+
+    except ValueError as erro:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(erro),
+        ) from erro
+
+
+@router.put(
+    "/treinos/{treino_id}/finalizar",
+    response_model=TreinoResposta,
+)
+def finalizar_treino(
+    treino_id: int,
+    dados: TreinoFinalizarEntrada,
+    service: AcademiaServiceDependencia,
+):
+    try:
+        treino = service.finalizar_treino(
+            treino_id=treino_id,
+            observacoes=dados.observacoes,
+        )
+
+        return converter_treino(treino)
+
+    except ValueError as erro:
+        mensagem = str(erro)
+
+        codigo = (
+            status.HTTP_404_NOT_FOUND
+            if mensagem == "Treino não encontrado."
+            else status.HTTP_400_BAD_REQUEST
+        )
+
+        raise HTTPException(
+            status_code=codigo,
+            detail=mensagem,
+        ) from erro
+
+
+@router.delete(
+    "/treinos/{treino_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def excluir_treino(
+    treino_id: int,
+    service: AcademiaServiceDependencia,
+):
+    try:
+        service.excluir_treino(treino_id)
+
     except ValueError as erro:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

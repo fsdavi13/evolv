@@ -4,6 +4,7 @@ import {
   PersonStanding,
   UserRound,
   Utensils,
+  Settings,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
@@ -15,11 +16,17 @@ const navigationItems = [
     path: "/",
     icon: House,
   },
+
   {
-    label: "Academia",
-    path: "/academia",
-    icon: Dumbbell,
-  },
+      label: "Treino",
+      path: "/treino",
+      icon: Dumbbell,
+    },
+    {
+      label: "Academia",
+      path: "/academia",
+      icon: Settings,
+    },
   {
     label: "Corridas",
     path: "/corridas",

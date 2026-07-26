@@ -15,6 +15,11 @@ from backend.models.divisao_exercicio import (
 )
 from backend.models.divisao_treino import DivisaoTreino
 
+from datetime import datetime
+
+from backend.dao.treino_dao import TreinoDAO
+from backend.models.treino import Treino
+
 
 class AcademiaService:
     def __init__(self):
@@ -22,6 +27,7 @@ class AcademiaService:
         self.serie_dao = SerieDAO()
         self.divisao_treino_dao = DivisaoTreinoDAO()
         self.divisao_exercicio_dao = DivisaoExercicioDAO()
+        self.treino_dao = TreinoDAO()
 
     def cadastrar_divisao(
         self,
@@ -355,16 +361,45 @@ class AcademiaService:
         data,
         peso,
         repeticoes,
-        observacoes=None
+        observacoes=None,
+        treino_id=None,
     ):
         self.buscar_exercicio_por_id(exercicio_id)
 
+        if treino_id is not None:
+            treino = self.buscar_treino_por_id(treino_id)
+
+            if treino.finalizado:
+                raise ValueError(
+                    "Não é possível registrar séries "
+                    "em um treino finalizado."
+                )
+
+            exercicios = (
+                self.divisao_exercicio_dao
+                .buscar_por_divisao(treino.divisao_id)
+            )
+
+            exercicios_ids = {
+                item.exercicio_id
+                for item in exercicios
+            }
+
+            if exercicio_id not in exercicios_ids:
+                raise ValueError(
+                    "O exercício não pertence à divisão "
+                    "deste treino."
+                )
+
         if peso < 0:
-            raise ValueError("O peso não pode ser negativo.")
+            raise ValueError(
+                "O peso não pode ser negativo."
+            )
 
         if repeticoes <= 0:
             raise ValueError(
-                "A quantidade de repetições deve ser maior que zero."
+                "A quantidade de repetições deve ser "
+                "maior que zero."
             )
 
         if observacoes is not None:
@@ -374,11 +409,12 @@ class AcademiaService:
                 observacoes = None
 
         serie = Serie(
+            treino_id=treino_id,
             exercicio_id=exercicio_id,
             data=data,
             peso=peso,
             repeticoes=repeticoes,
-            observacoes=observacoes
+            observacoes=observacoes,
         )
 
         return self.serie_dao.criar(serie)
@@ -461,3 +497,110 @@ class AcademiaService:
             raise ValueError("Série não encontrada.")
 
         self.serie_dao.deletar(serie_id)
+
+    def iniciar_treino(
+        self,
+        divisao_id,
+        observacoes=None,
+    ):
+        self.buscar_divisao_por_id(divisao_id)
+
+        treino_em_andamento = (
+            self.treino_dao.buscar_em_andamento()
+        )
+
+        if treino_em_andamento is not None:
+            raise ValueError(
+                "Já existe um treino em andamento."
+            )
+
+        if observacoes is not None:
+            observacoes = observacoes.strip()
+
+            if not observacoes:
+                observacoes = None
+
+        treino = Treino(
+            divisao_id=divisao_id,
+            iniciado_em=datetime.now(),
+            observacoes=observacoes,
+        )
+
+        treino = self.treino_dao.criar(treino)
+
+        return self.buscar_treino_por_id(treino.id)
+
+
+    def listar_treinos(self):
+        return self.treino_dao.buscar_todos()
+
+
+    def buscar_treino_por_id(self, treino_id):
+        treino = self.treino_dao.buscar_por_id(
+            treino_id
+        )
+
+        if treino is None:
+            raise ValueError(
+                "Treino não encontrado."
+            )
+
+        return treino
+
+
+    def buscar_treino_em_andamento(self):
+        treino = self.treino_dao.buscar_em_andamento()
+
+        if treino is None:
+            raise ValueError(
+                "Não existe treino em andamento."
+            )
+
+        return treino
+
+
+    def buscar_treino_detalhado(self, treino_id):
+        treino = self.buscar_treino_por_id(
+            treino_id
+        )
+
+        series = self.serie_dao.buscar_por_treino(
+            treino_id
+        )
+
+        return treino, series
+
+
+    def finalizar_treino(
+        self,
+        treino_id,
+        observacoes=None,
+    ):
+        treino = self.buscar_treino_por_id(
+            treino_id
+        )
+
+        if treino.finalizado:
+            raise ValueError(
+                "O treino já foi finalizado."
+            )
+
+        if observacoes is not None:
+            observacoes = observacoes.strip()
+            treino.observacoes = (
+                observacoes or None
+            )
+
+        treino.finalizar()
+
+        self.treino_dao.atualizar(treino)
+
+        return self.buscar_treino_por_id(
+            treino.id
+        )
+
+
+    def excluir_treino(self, treino_id):
+        self.buscar_treino_por_id(treino_id)
+
+        self.treino_dao.deletar(treino_id)

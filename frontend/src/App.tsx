@@ -11,6 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import DietaPage from "./pages/DietaPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ProfilePage from "./pages/ProfilePage";
+import TreinoPage from "./pages/TreinoPage";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="/dieta" element={<DietaPage />} />
           <Route path="/perfil" element={<ProfilePage />} />
           <Route path="*" element={<NotFoundPage />} />
+          <Route path="/treino"element={<TreinoPage />}/>
         </Route>
       </Routes>
     </BrowserRouter>

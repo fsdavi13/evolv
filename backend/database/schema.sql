@@ -15,24 +15,47 @@ CREATE TABLE IF NOT EXISTS divisao_exercicios (
     divisao_id INTEGER NOT NULL,
     exercicio_id INTEGER NOT NULL,
     ordem INTEGER NOT NULL,
+
     FOREIGN KEY (divisao_id)
         REFERENCES divisoes_treino (id)
         ON DELETE CASCADE,
+
     FOREIGN KEY (exercicio_id)
         REFERENCES exercicios (id)
         ON DELETE CASCADE,
+
     UNIQUE (divisao_id, exercicio_id),
     UNIQUE (divisao_id, ordem)
 );
 
+CREATE TABLE IF NOT EXISTS treinos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    divisao_id INTEGER NOT NULL,
+    iniciado_em TEXT NOT NULL,
+    finalizado_em TEXT,
+    observacoes TEXT,
+
+    FOREIGN KEY (divisao_id)
+        REFERENCES divisoes_treino (id)
+        ON DELETE RESTRICT
+);
+
 CREATE TABLE IF NOT EXISTS series (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    treino_id INTEGER,
     exercicio_id INTEGER NOT NULL,
     data TEXT NOT NULL,
     peso REAL NOT NULL,
     repeticoes INTEGER NOT NULL,
     observacoes TEXT,
-    FOREIGN KEY (exercicio_id) REFERENCES exercicios (id) ON DELETE CASCADE
+
+    FOREIGN KEY (treino_id)
+        REFERENCES treinos (id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (exercicio_id)
+        REFERENCES exercicios (id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS corridas (
@@ -60,7 +83,10 @@ CREATE TABLE IF NOT EXISTS registros_alimentares (
     data TEXT NOT NULL,
     quantidade_gramas REAL NOT NULL,
     refeicao TEXT NOT NULL,
-    FOREIGN KEY (alimento_id) REFERENCES alimentos (id) ON DELETE CASCADE
+
+    FOREIGN KEY (alimento_id)
+        REFERENCES alimentos (id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS medidas_caseiras (
@@ -79,7 +105,9 @@ CREATE TABLE IF NOT EXISTS porcoes (
     alimento_id INTEGER NOT NULL,
     descricao TEXT NOT NULL,
     gramas REAL NOT NULL,
-    FOREIGN KEY (alimento_id) REFERENCES alimentos(id)
+
+    FOREIGN KEY (alimento_id)
+        REFERENCES alimentos(id)
 );
 
 CREATE TABLE IF NOT EXISTS perfil (

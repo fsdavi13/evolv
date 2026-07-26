@@ -9,6 +9,16 @@ import type {
   ExercicioPayload,
 } from "../types/academia";
 
+import axios from "axios";
+
+import type {
+  FinalizarTreinoPayload,
+  IniciarTreinoPayload,
+  Serie,
+  SeriePayload,
+  Treino,
+} from "../types/academia";
+
 export async function listarExercicios(): Promise<
   Exercicio[]
 > {
@@ -103,4 +113,75 @@ export async function removerExercicioDivisao(
   await api.delete(
     `/academia/divisoes/${divisaoId}/exercicios/${exercicioId}`,
   );
+}
+
+export async function buscarTreinoEmAndamento(): Promise<Treino | null> {
+  try {
+    const resposta = await api.get<Treino>(
+      "/academia/treinos/em-andamento",
+    );
+
+    return resposta.data;
+  } catch (erro) {
+    if (
+      axios.isAxiosError(erro) &&
+      erro.response?.status === 404
+    ) {
+      return null;
+    }
+
+    throw erro;
+  }
+}
+
+export async function iniciarTreino(
+  dados: IniciarTreinoPayload,
+): Promise<Treino> {
+  const resposta = await api.post<Treino>(
+    "/academia/treinos",
+    dados,
+  );
+
+  return resposta.data;
+}
+
+export async function finalizarTreino(
+  treinoId: number,
+  dados?: FinalizarTreinoPayload,
+): Promise<Treino> {
+  const resposta = await api.put<Treino>(
+    `/academia/treinos/${treinoId}/finalizar`,
+    dados ?? {},
+  );
+
+  return resposta.data;
+}
+
+export async function registrarSerie(
+  dados: SeriePayload,
+): Promise<Serie> {
+  const resposta = await api.post<Serie>(
+    "/academia/series",
+    dados,
+  );
+
+  return resposta.data;
+}
+
+export async function listarTreinos(): Promise<Treino[]> {
+  const resposta = await api.get<Treino[]>(
+    "/academia/treinos",
+  );
+
+  return resposta.data;
+}
+
+export async function buscarTreino(
+  treinoId: number,
+): Promise<Treino> {
+  const resposta = await api.get<Treino>(
+    `/academia/treinos/${treinoId}`,
+  );
+
+  return resposta.data;
 }

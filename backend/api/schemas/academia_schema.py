@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -13,7 +13,8 @@ class ExercicioResposta(ExercicioEntrada):
 
 
 class SerieEntrada(BaseModel):
-    exercicio_id: int
+    treino_id: int | None = Field(default=None, gt=0)
+    exercicio_id: int = Field(gt=0)
     data: date
     peso: float = Field(ge=0)
     repeticoes: int = Field(gt=0)
@@ -51,3 +52,32 @@ class DivisaoResposta(DivisaoEntrada):
 
 class DivisaoDetalhadaResposta(DivisaoResposta):
     exercicios: list[ExercicioDivisaoResposta]
+
+
+class TreinoEntrada(BaseModel):
+    divisao_id: int = Field(gt=0)
+    observacoes: str | None = Field(
+        default=None,
+        max_length=500,
+    )
+
+
+class TreinoFinalizarEntrada(BaseModel):
+    observacoes: str | None = Field(
+        default=None,
+        max_length=500,
+    )
+
+
+class TreinoResposta(BaseModel):
+    id: int
+    divisao_id: int
+    divisao_nome: str | None
+    iniciado_em: datetime
+    finalizado_em: datetime | None
+    observacoes: str | None
+    finalizado: bool
+
+
+class TreinoDetalhadoResposta(TreinoResposta):
+    series: list[SerieResposta]
