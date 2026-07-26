@@ -1,5 +1,5 @@
 import {
-  Dumbbell,
+  
   House,
   PersonStanding,
   UserRound,
