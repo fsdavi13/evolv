@@ -1,5 +1,5 @@
 import {
-  
+  Activity,
   House,
   PersonStanding,
   UserRound,
@@ -16,12 +16,11 @@ const navigationItems = [
     path: "/",
     icon: House,
   },
-
-    {
-      label: "Academia",
-      path: "/academia",
-      icon: Settings,
-    },
+  {
+    label: "Academia",
+    path: "/academia",
+    icon: Settings,
+  },
   {
     label: "Corridas",
     path: "/corridas",
@@ -45,35 +44,51 @@ function AppNavigation() {
       className="app-navigation"
       aria-label="Navegação principal"
     >
-      {navigationItems.map((item) => {
-        const Icon = item.icon;
+      <div className="app-navigation__brand">
+        <span className="app-navigation__brand-icon">
+          <Activity
+            size={23}
+            strokeWidth={2.5}
+            aria-hidden="true"
+          />
+        </span>
 
-        return (
-          <NavLink
-            key={item.path}
-            className={({ isActive }) =>
-              [
-                "app-navigation__link",
-                isActive
-                  ? "app-navigation__link--active"
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(" ")
-            }
-            end={item.path === "/"}
-            to={item.path}
-          >
-            <Icon
-              className="app-navigation__icon"
-              size={20}
-              aria-hidden="true"
-            />
+        <span className="app-navigation__brand-name">
+          Evolv
+        </span>
+      </div>
 
-            {item.label}
-          </NavLink>
-        );
-      })}
+      <div className="app-navigation__links">
+        {navigationItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <NavLink
+              key={item.path}
+              className={({ isActive }) =>
+                [
+                  "app-navigation__link",
+                  isActive
+                    ? "app-navigation__link--active"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              }
+              end={item.path === "/"}
+              to={item.path}
+            >
+              <Icon
+                className="app-navigation__icon"
+                size={20}
+                aria-hidden="true"
+              />
+
+              {item.label}
+            </NavLink>
+          );
+        })}
+      </div>
     </nav>
   );
 }

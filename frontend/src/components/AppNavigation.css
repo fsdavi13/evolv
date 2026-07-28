@@ -60,6 +60,8 @@
     right: auto;
     bottom: 0;
     left: 0;
+    padding-top: 0;
+    margin-top: 0;
 
     width: 240px;
 
@@ -84,4 +86,36 @@
 
     font-size: 0.95rem;
   }
+
+  .app-navigation__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 18px;
+    border-bottom: 1px solid #2d2d33;
+  }
+
+  .app-navigation__brand-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    place-items: center;
+    color: #111113;
+    background: #ffffff;
+    border-radius: 13px;
+  }
+
+  .app-navigation__brand-name {
+    color: #ffffff;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+
+  .app-navigation__links {
+    display: flex;
+    flex-direction: column;
+  }
+
 }
