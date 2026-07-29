@@ -1,9 +1,14 @@
 import {
   Check,
+  ChevronDown,
   Clock3,
   Dumbbell,
+  Plus,
+  Save,
+  X,
 } from "lucide-react";
 import {
+  type FormEvent,
   useEffect,
   useState,
 } from "react";
@@ -11,22 +16,133 @@ import { useNavigate } from "react-router-dom";
 
 import {
   buscarDivisao,
+  buscarTreino,
   buscarTreinoEmAndamento,
   finalizarTreino,
+  listarTreinos,
+  registrarSerie,
 } from "../services/academiaService";
 
 import type {
   DivisaoTreinoDetalhada,
+  Serie,
   Treino,
 } from "../types/academia";
 
 import "./TreinoPage.css";
+
+interface SerieRascunho {
+  id: string;
+  peso: string;
+  repeticoes: string;
+  observacoes: string;
+  referencia: Serie | null;
+}
+
+type RascunhosPorExercicio = Record<
+  number,
+  SerieRascunho[]
+>;
 
 function formatarHorario(data: string): string {
   return new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(data));
+}
+
+function obterDataAtual(): string {
+  const data = new Date();
+
+  const ano = data.getFullYear();
+  const mes = String(
+    data.getMonth() + 1,
+  ).padStart(2, "0");
+  const dia = String(data.getDate()).padStart(
+    2,
+    "0",
+  );
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+function obterMomentoTreino(
+  treino: Treino,
+): number {
+  const data =
+    treino.finalizado_em ??
+    treino.iniciado_em;
+
+  return new Date(data).getTime();
+}
+
+function criarRascunhosIniciais(
+  divisao: DivisaoTreinoDetalhada,
+  seriesAtuais: Serie[],
+  seriesAnteriores: Serie[],
+): RascunhosPorExercicio {
+  const rascunhos: RascunhosPorExercicio =
+    {};
+
+  divisao.exercicios.forEach((exercicio) => {
+    const quantidadeAtual =
+      seriesAtuais.filter(
+        (serie) =>
+          serie.exercicio_id ===
+          exercicio.exercicio_id,
+      ).length;
+
+    const referencias =
+      seriesAnteriores
+        .filter(
+          (serie) =>
+            serie.exercicio_id ===
+            exercicio.exercicio_id,
+        )
+        .sort((a, b) => a.id - b.id)
+        .slice(quantidadeAtual);
+
+    rascunhos[exercicio.exercicio_id] =
+      referencias.map((serie) => ({
+        id: `referencia-${serie.id}`,
+        peso: "",
+        repeticoes: "",
+        observacoes: "",
+        referencia: serie,
+      }));
+  });
+
+  return rascunhos;
+}
+
+async function buscarSeriesUltimoTreinoPreenchido(
+  treinos: Treino[],
+  treinoAtual: Treino,
+): Promise<Serie[]> {
+  const treinosAnteriores = treinos
+    .filter(
+      (item) =>
+        item.id !== treinoAtual.id &&
+        item.divisao_id ===
+          treinoAtual.divisao_id &&
+        item.finalizado,
+    )
+    .sort(
+      (a, b) =>
+        obterMomentoTreino(b) -
+        obterMomentoTreino(a),
+    );
+
+  for (const treinoAnterior of treinosAnteriores) {
+    const treinoDetalhado =
+      await buscarTreino(treinoAnterior.id);
+
+    if (treinoDetalhado.series.length > 0) {
+      return treinoDetalhado.series;
+    }
+  }
+
+  return [];
 }
 
 function TreinoPage() {
@@ -39,6 +155,20 @@ function TreinoPage() {
     useState<DivisaoTreinoDetalhada | null>(
       null,
     );
+
+  const [series, setSeries] = useState<
+    Serie[]
+  >([]);
+
+  const [
+    rascunhosPorExercicio,
+    setRascunhosPorExercicio,
+  ] = useState<RascunhosPorExercicio>({});
+
+  const [
+    salvandoRascunhoId,
+    setSalvandoRascunhoId,
+  ] = useState<string | null>(null);
 
   const [carregando, setCarregando] =
     useState(true);
@@ -67,13 +197,35 @@ function TreinoPage() {
           return;
         }
 
-        const divisaoAtual =
-          await buscarDivisao(
+        const [
+          divisaoAtual,
+          treinoDetalhado,
+          todosTreinos,
+        ] = await Promise.all([
+          buscarDivisao(
             treinoAtual.divisao_id,
-          );
+          ),
+          buscarTreino(treinoAtual.id),
+          listarTreinos(),
+        ]);
+
+  const seriesAnteriores =
+    await buscarSeriesUltimoTreinoPreenchido(
+      todosTreinos,
+      treinoAtual,
+    );
 
         setTreino(treinoAtual);
         setDivisao(divisaoAtual);
+        setSeries(treinoDetalhado.series);
+
+        setRascunhosPorExercicio(
+          criarRascunhosIniciais(
+            divisaoAtual,
+            treinoDetalhado.series,
+            seriesAnteriores,
+          ),
+        );
       } catch {
         setErro(
           "Não foi possível carregar o treino.",
@@ -85,6 +237,184 @@ function TreinoPage() {
 
     void carregarTreino();
   }, [navigate]);
+
+  function adicionarRascunho(
+    exercicioId: number,
+  ) {
+    const novoRascunho: SerieRascunho = {
+      id: `novo-${exercicioId}-${Date.now()}`,
+      peso: "",
+      repeticoes: "",
+      observacoes: "",
+      referencia: null,
+    };
+
+    setRascunhosPorExercicio(
+      (rascunhosAtuais) => ({
+        ...rascunhosAtuais,
+        [exercicioId]: [
+          ...(rascunhosAtuais[
+            exercicioId
+          ] ?? []),
+          novoRascunho,
+        ],
+      }),
+    );
+  }
+
+  function atualizarRascunho(
+    exercicioId: number,
+    rascunhoId: string,
+    campo:
+      | "peso"
+      | "repeticoes"
+      | "observacoes",
+    valor: string,
+  ) {
+    setRascunhosPorExercicio(
+      (rascunhosAtuais) => ({
+        ...rascunhosAtuais,
+        [exercicioId]: (
+          rascunhosAtuais[exercicioId] ?? []
+        ).map((rascunho) =>
+          rascunho.id === rascunhoId
+            ? {
+                ...rascunho,
+                [campo]: valor,
+              }
+            : rascunho,
+        ),
+      }),
+    );
+  }
+
+  function removerRascunho(
+    exercicioId: number,
+    rascunhoId: string,
+  ) {
+    if (
+      salvandoRascunhoId === rascunhoId
+    ) {
+      return;
+    }
+
+    setRascunhosPorExercicio(
+      (rascunhosAtuais) => ({
+        ...rascunhosAtuais,
+        [exercicioId]: (
+          rascunhosAtuais[exercicioId] ?? []
+        ).filter(
+          (rascunho) =>
+            rascunho.id !== rascunhoId,
+        ),
+      }),
+    );
+  }
+
+  async function salvarRascunho(
+    evento: FormEvent<HTMLFormElement>,
+    exercicioId: number,
+    rascunhoId: string,
+  ) {
+    evento.preventDefault();
+
+    if (
+      !treino ||
+      salvandoRascunhoId !== null
+    ) {
+      return;
+    }
+
+    const rascunho = (
+      rascunhosPorExercicio[
+        exercicioId
+      ] ?? []
+    ).find(
+      (item) => item.id === rascunhoId,
+    );
+
+    if (!rascunho) {
+      return;
+    }
+
+    const pesoTexto =
+      rascunho.peso.trim() ||
+      (rascunho.referencia
+        ? String(
+            rascunho.referencia.peso,
+          )
+        : "");
+
+    const repeticoesTexto =
+      rascunho.repeticoes.trim() ||
+      (rascunho.referencia
+        ? String(
+            rascunho.referencia
+              .repeticoes,
+          )
+        : "");
+
+    const pesoNumero = Number(pesoTexto);
+    const repeticoesNumero = Number(
+      repeticoesTexto,
+    );
+
+    if (
+      !Number.isFinite(pesoNumero) ||
+      pesoNumero < 0
+    ) {
+      setErro("Informe um peso válido.");
+      return;
+    }
+
+    if (
+      !Number.isInteger(
+        repeticoesNumero,
+      ) ||
+      repeticoesNumero <= 0
+    ) {
+      setErro(
+        "Informe uma quantidade válida de repetições.",
+      );
+      return;
+    }
+
+    try {
+      setSalvandoRascunhoId(
+        rascunhoId,
+      );
+      setErro(null);
+
+      const novaSerie =
+        await registrarSerie({
+          treino_id: treino.id,
+          exercicio_id: exercicioId,
+          data: obterDataAtual(),
+          peso: pesoNumero,
+          repeticoes:
+            repeticoesNumero,
+          observacoes:
+            rascunho.observacoes.trim() ||
+            null,
+        });
+
+      setSeries((seriesAtuais) => [
+        ...seriesAtuais,
+        novaSerie,
+      ]);
+
+      removerRascunho(
+        exercicioId,
+        rascunhoId,
+      );
+    } catch {
+      setErro(
+        "Não foi possível registrar a série.",
+      );
+    } finally {
+      setSalvandoRascunhoId(null);
+    }
+  }
 
   async function concluirTreino() {
     if (!treino || finalizando) {
@@ -130,7 +460,7 @@ function TreinoPage() {
     );
   }
 
-  if (erro || !treino || !divisao) {
+  if (!treino || !divisao) {
     return (
       <section className="page">
         <div className="treino-error">
@@ -178,7 +508,6 @@ function TreinoPage() {
 
         <div>
           <span>Divisão selecionada</span>
-
           <strong>{divisao.nome}</strong>
 
           {divisao.descricao && (
@@ -202,30 +531,289 @@ function TreinoPage() {
         </header>
 
         <div className="treino-exercises__list">
-          {divisao.exercicios.map(
-            (exercicio) => (
-              <article
+          {divisao.exercicios.map((exercicio) => {
+            const seriesDoExercicio = series
+              .filter(
+                (serie) =>
+                  serie.exercicio_id ===
+                  exercicio.exercicio_id,
+              )
+              .sort((a, b) => a.id - b.id);
+
+            const rascunhos =
+              rascunhosPorExercicio[
+                exercicio.exercicio_id
+              ] ?? [];
+
+            return (
+              <details
                 key={exercicio.id}
                 className="treino-exercise"
               >
-                <div className="treino-exercise__order">
-                  {exercicio.ordem}
-                </div>
+                <summary className="treino-exercise__summary">
+                  <div className="treino-exercise__order">
+                    {exercicio.ordem}
+                  </div>
 
-                <div className="treino-exercise__content">
-                  <h3>{exercicio.nome}</h3>
+                  <div className="treino-exercise__content">
+                    <h3>{exercicio.nome}</h3>
 
-                  <p>
-                    {
-                      exercicio.grupo_muscular
+                    <p>{exercicio.grupo_muscular}</p>
+                  </div>
+
+                  <span className="treino-exercise__count">
+                    {seriesDoExercicio.length}{" "}
+                    {seriesDoExercicio.length === 1
+                      ? "registrada"
+                      : "registradas"}
+                  </span>
+
+                  <ChevronDown
+                    className="treino-exercise__chevron"
+                    size={20}
+                    aria-hidden="true"
+                  />
+                </summary>
+
+                <div className="treino-exercise__body">
+                  {seriesDoExercicio.length > 0 && (
+                    <div className="treino-series-list">
+                      {seriesDoExercicio.map(
+                        (serie, indice) => (
+                          <div
+                            key={serie.id}
+                            className="treino-series-item"
+                          >
+                            <span>
+                              Série {indice + 1}
+                            </span>
+
+                            <strong>
+                              {serie.peso.toLocaleString(
+                                "pt-BR",
+                              )}{" "}
+                              kg
+                            </strong>
+
+                            <strong>
+                              {serie.repeticoes} reps
+                            </strong>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  )}
+
+                  {rascunhos.map(
+                    (rascunho, indice) => {
+                      const numeroSerie =
+                        seriesDoExercicio.length +
+                        indice +
+                        1;
+
+                      const salvando =
+                        salvandoRascunhoId ===
+                        rascunho.id;
+
+                      return (
+                        <details
+                          key={rascunho.id}
+                          className="treino-serie-card"
+                        >
+                          <summary className="treino-serie-card__summary">
+                            <div>
+                              <strong>
+                                Série {numeroSerie}
+                              </strong>
+
+                              {rascunho.referencia ? (
+                                <span>
+                                  Último treino:{" "}
+                                  {rascunho.referencia.peso.toLocaleString(
+                                    "pt-BR",
+                                  )}{" "}
+                                  kg ×{" "}
+                                  {
+                                    rascunho.referencia
+                                      .repeticoes
+                                  }{" "}
+                                  reps
+                                </span>
+                              ) : (
+                                <span>Nova série</span>
+                              )}
+                            </div>
+
+                            <ChevronDown
+                              className="treino-serie-card__chevron"
+                              size={19}
+                              aria-hidden="true"
+                            />
+                          </summary>
+
+                          <form
+                            className="treino-serie-form"
+                            onSubmit={(evento) =>
+                              void salvarRascunho(
+                                evento,
+                                exercicio.exercicio_id,
+                                rascunho.id,
+                              )
+                            }
+                          >
+                            <div className="treino-serie-form__grid">
+                              <label>
+                                <span>Peso</span>
+
+                                <div className="treino-serie-form__input">
+                                  <input
+                                    min="0"
+                                    step="0.5"
+                                    type="number"
+                                    inputMode="decimal"
+                                    placeholder={
+                                      rascunho.referencia
+                                        ? String(
+                                            rascunho
+                                              .referencia
+                                              .peso,
+                                          )
+                                        : "0"
+                                    }
+                                    value={rascunho.peso}
+                                    onChange={(evento) =>
+                                      atualizarRascunho(
+                                        exercicio.exercicio_id,
+                                        rascunho.id,
+                                        "peso",
+                                        evento.target
+                                          .value,
+                                      )
+                                    }
+                                  />
+
+                                  <span>kg</span>
+                                </div>
+                              </label>
+
+                              <label>
+                                <span>Repetições</span>
+
+                                <div className="treino-serie-form__input">
+                                  <input
+                                    min="1"
+                                    step="1"
+                                    type="number"
+                                    inputMode="numeric"
+                                    placeholder={
+                                      rascunho.referencia
+                                        ? String(
+                                            rascunho
+                                              .referencia
+                                              .repeticoes,
+                                          )
+                                        : "0"
+                                    }
+                                    value={
+                                      rascunho.repeticoes
+                                    }
+                                    onChange={(evento) =>
+                                      atualizarRascunho(
+                                        exercicio.exercicio_id,
+                                        rascunho.id,
+                                        "repeticoes",
+                                        evento.target
+                                          .value,
+                                      )
+                                    }
+                                  />
+
+                                  <span>reps</span>
+                                </div>
+                              </label>
+
+                              <label className="treino-serie-form__observacoes">
+                                <span>Observações</span>
+
+                                <input
+                                  type="text"
+                                  maxLength={200}
+                                  placeholder={
+                                    rascunho.referencia
+                                      ?.observacoes ??
+                                    "Opcional"
+                                  }
+                                  value={
+                                    rascunho.observacoes
+                                  }
+                                  onChange={(evento) =>
+                                    atualizarRascunho(
+                                      exercicio.exercicio_id,
+                                      rascunho.id,
+                                      "observacoes",
+                                      evento.target
+                                        .value,
+                                    )
+                                  }
+                                />
+                              </label>
+                            </div>
+
+                            <div className="treino-serie-form__actions">
+                              <button
+                                type="button"
+                                className="treino-serie-button treino-serie-button--secondary"
+                                disabled={salvando}
+                                onClick={() =>
+                                  removerRascunho(
+                                    exercicio.exercicio_id,
+                                    rascunho.id,
+                                  )
+                                }
+                              >
+                                <X size={17} />
+                                Remover
+                              </button>
+
+                              <button
+                                type="submit"
+                                className="treino-serie-button treino-serie-button--primary"
+                                disabled={
+                                  salvandoRascunhoId !==
+                                  null
+                                }
+                              >
+                                <Save size={17} />
+
+                                {salvando
+                                  ? "Salvando..."
+                                  : "Registrar série"}
+                              </button>
+                            </div>
+                          </form>
+                        </details>
+                      );
+                    },
+                  )}
+
+                  <button
+                    type="button"
+                    className="treino-add-serie"
+                    onClick={() =>
+                      adicionarRascunho(
+                        exercicio.exercicio_id,
+                      )
                     }
-                  </p>
+                  >
+                    <Plus size={17} />
+                    Adicionar série
+                  </button>
                 </div>
-              </article>
-            ),
-          )}
+              </details>
+            );
+          })}
         </div>
-      </section>
+        </section>
 
       {erro && (
         <div

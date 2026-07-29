@@ -80,6 +80,10 @@ export interface Treino {
   finalizado: boolean;
 }
 
+export interface TreinoDetalhado extends Treino {
+  series: Serie[];
+}
+
 export interface Serie {
   id: number;
   treino_id: number;
@@ -102,6 +106,7 @@ export interface FinalizarTreinoPayload {
 export interface SeriePayload {
   treino_id: number;
   exercicio_id: number;
+  data: string;
   peso: number;
   repeticoes: number;
   observacoes?: string | null;

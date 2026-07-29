@@ -12,6 +12,7 @@ import type {
   Serie,
   SeriePayload,
   Treino,
+  TreinoDetalhado,
 } from "../types/academia";
 
 import axios from "axios";
@@ -175,10 +176,11 @@ export async function listarTreinos(): Promise<Treino[]> {
 
 export async function buscarTreino(
   treinoId: number,
-): Promise<Treino> {
-  const resposta = await api.get<Treino>(
-    `/academia/treinos/${treinoId}`,
-  );
+): Promise<TreinoDetalhado> {
+  const resposta =
+    await api.get<TreinoDetalhado>(
+      `/academia/treinos/${treinoId}`,
+    );
 
   return resposta.data;
 }
