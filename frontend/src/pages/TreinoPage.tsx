@@ -44,24 +44,38 @@ type RascunhosPorExercicio = Record<
   SerieRascunho[]
 >;
 
-function formatarHorario(data: string): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(data));
+function formatarDuracao(
+  totalSegundos: number,
+): string {
+  const horas = Math.floor(
+    totalSegundos / 3600,
+  );
+
+  const minutos = Math.floor(
+    (totalSegundos % 3600) / 60,
+  );
+
+  const segundos = totalSegundos % 60;
+
+  return [horas, minutos, segundos]
+    .map((valor) =>
+      String(valor).padStart(2, "0"),
+    )
+    .join(":");
 }
 
 function obterDataAtual(): string {
   const data = new Date();
 
   const ano = data.getFullYear();
+
   const mes = String(
     data.getMonth() + 1,
   ).padStart(2, "0");
-  const dia = String(data.getDate()).padStart(
-    2,
-    "0",
-  );
+
+  const dia = String(
+    data.getDate(),
+  ).padStart(2, "0");
 
   return `${ano}-${mes}-${dia}`;
 }
@@ -180,63 +194,112 @@ function TreinoPage() {
     string | null
   >(null);
 
-  useEffect(() => {
-    async function carregarTreino() {
-      try {
-        setCarregando(true);
-        setErro(null);
+  const [
+    tempoDecorridoSegundos,
+    setTempoDecorridoSegundos,
+  ] = useState(0);
 
-        const treinoAtual =
-          await buscarTreinoEmAndamento();
+useEffect(() => {
+  async function carregarTreino() {
+    try {
+      setCarregando(true);
+      setErro(null);
 
-        if (!treinoAtual) {
-          navigate("/academia", {
-            replace: true,
-          });
+      const treinoAtual =
+        await buscarTreinoEmAndamento();
 
-          return;
-        }
+      if (!treinoAtual) {
+        navigate("/academia", {
+          replace: true,
+        });
 
-        const [
-          divisaoAtual,
-          treinoDetalhado,
-          todosTreinos,
-        ] = await Promise.all([
-          buscarDivisao(
-            treinoAtual.divisao_id,
-          ),
-          buscarTreino(treinoAtual.id),
-          listarTreinos(),
-        ]);
-
-  const seriesAnteriores =
-    await buscarSeriesUltimoTreinoPreenchido(
-      todosTreinos,
-      treinoAtual,
-    );
-
-        setTreino(treinoAtual);
-        setDivisao(divisaoAtual);
-        setSeries(treinoDetalhado.series);
-
-        setRascunhosPorExercicio(
-          criarRascunhosIniciais(
-            divisaoAtual,
-            treinoDetalhado.series,
-            seriesAnteriores,
-          ),
-        );
-      } catch {
-        setErro(
-          "Não foi possível carregar o treino.",
-        );
-      } finally {
-        setCarregando(false);
+        return;
       }
+
+      const [
+        divisaoAtual,
+        treinoDetalhado,
+        todosTreinos,
+      ] = await Promise.all([
+        buscarDivisao(
+          treinoAtual.divisao_id,
+        ),
+        buscarTreino(treinoAtual.id),
+        listarTreinos(),
+      ]);
+
+      const seriesAnteriores =
+        await buscarSeriesUltimoTreinoPreenchido(
+          todosTreinos,
+          treinoAtual,
+        );
+
+      setTreino(treinoAtual);
+      setDivisao(divisaoAtual);
+      setSeries(treinoDetalhado.series);
+
+      setRascunhosPorExercicio(
+        criarRascunhosIniciais(
+          divisaoAtual,
+          treinoDetalhado.series,
+          seriesAnteriores,
+        ),
+      );
+    } catch (erroCarregamento) {
+      console.error(
+        "Erro ao carregar treino:",
+        erroCarregamento,
+      );
+
+      setErro(
+        "Não foi possível carregar o treino.",
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  void carregarTreino();
+}, [navigate]);
+
+useEffect(() => {
+  if (!treino) {
+    setTempoDecorridoSegundos(0);
+    return;
+  }
+
+  const iniciadoEm = treino.iniciado_em;
+
+  function atualizarCronometro() {
+    const inicio = new Date(
+      iniciadoEm,
+    ).getTime();
+
+    if (Number.isNaN(inicio)) {
+      setTempoDecorridoSegundos(0);
+      return;
     }
 
-    void carregarTreino();
-  }, [navigate]);
+    const totalSegundos = Math.floor(
+      (Date.now() - inicio) / 1000,
+    );
+
+    setTempoDecorridoSegundos(
+      Math.max(0, totalSegundos),
+    );
+  }
+
+  atualizarCronometro();
+
+  const intervalo = window.setInterval(
+    atualizarCronometro,
+    1000,
+  );
+
+  return () => {
+    window.clearInterval(intervalo);
+  };
+}, [treino]);
 
   function adicionarRascunho(
     exercicioId: number,
@@ -491,10 +554,10 @@ function TreinoPage() {
           <Clock3 size={18} />
 
           <span>
-            Iniciado às{" "}
+            Duração{" "}
             <strong>
-              {formatarHorario(
-                treino.iniciado_em,
+              {formatarDuracao(
+                tempoDecorridoSegundos,
               )}
             </strong>
           </span>
