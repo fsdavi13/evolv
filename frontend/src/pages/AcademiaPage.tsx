@@ -8,6 +8,7 @@ import {
   Search,
   Trash2,
   X,
+  XCircle,
 } from "lucide-react";
 import {
   type ChangeEvent,
@@ -28,6 +29,8 @@ import {
   listarExercicios,
   removerExercicioDivisao,
   iniciarTreino,
+  buscarTreinoEmAndamento,
+  excluirTreino,
 } from "../services/academiaService";
 
 import type {
@@ -35,6 +38,7 @@ import type {
   DivisaoTreinoDetalhada,
   Exercicio,
   ExercicioPayload,
+  Treino,
 } from "../types/academia";
 
 import "./AcademiaPage.css";
@@ -169,6 +173,16 @@ function AcademiaPage() {
     setErroFormulario,
   ] = useState<string | null>(null);
 
+  const [
+  treinoEmAndamento,
+  setTreinoEmAndamento,
+] = useState<Treino | null>(null);
+
+const [
+  cancelandoTreino,
+  setCancelandoTreino,
+] = useState(false);
+
   useEffect(() => {
     async function carregarDadosIniciais() {
       try {
@@ -230,6 +244,21 @@ function AcademiaPage() {
 
     void carregarDivisaoSelecionada();
   }, [divisaoSelecionadaId]);
+
+  useEffect(() => {
+  async function carregarTreinoEmAndamento() {
+    try {
+      const treinoAtual =
+        await buscarTreinoEmAndamento();
+
+      setTreinoEmAndamento(treinoAtual);
+    } catch {
+      setTreinoEmAndamento(null);
+    }
+  }
+
+  void carregarTreinoEmAndamento();
+}, []);
 
   const gruposMusculares = useMemo(() => {
     const gruposExistentes = exercicios
@@ -766,6 +795,11 @@ function AcademiaPage() {
   }
 
 async function iniciarTreinoSelecionado() {
+  if (treinoEmAndamento) {
+    navigate("/treino");
+    return;
+  }
+
   if (
     !divisaoSelecionada ||
     iniciandoTreino
@@ -777,9 +811,11 @@ async function iniciarTreinoSelecionado() {
     setIniciandoTreino(true);
     setErro(null);
 
-    await iniciarTreino({
+    const novoTreino = await iniciarTreino({
       divisao_id: divisaoSelecionada.id,
     });
+
+    setTreinoEmAndamento(novoTreino);
 
     navigate("/treino");
   } catch (erroInicio) {
@@ -788,6 +824,42 @@ async function iniciarTreinoSelecionado() {
     );
   } finally {
     setIniciandoTreino(false);
+  }
+}
+
+async function cancelarTreinoEmAndamento() {
+  if (
+    !treinoEmAndamento ||
+    cancelandoTreino
+  ) {
+    return;
+  }
+
+  const confirmou = window.confirm(
+    "Deseja cancelar o treino em andamento? O treino será excluído.",
+  );
+
+  if (!confirmou) {
+    return;
+  }
+
+  try {
+    setCancelandoTreino(true);
+    setErro(null);
+
+    await excluirTreino(
+      treinoEmAndamento.id,
+    );
+
+    setTreinoEmAndamento(null);
+  } catch (erroCancelamento) {
+    setErro(
+      obterMensagemErro(
+        erroCancelamento,
+      ),
+    );
+  } finally {
+    setCancelandoTreino(false);
   }
 }
 
@@ -921,28 +993,58 @@ async function iniciarTreinoSelecionado() {
                     </div>
 
                     <div className="workout-panel__actions">
-                      <button
-                        className="workout-action workout-action--primary"
-                        type="button"
-                        disabled={
-                          iniciandoTreino ||
-                          divisaoSelecionada.exercicios.length === 0
-                        }
-                        onClick={() =>
-                          void iniciarTreinoSelecionado()
-                        }
-                        title={
-                          divisaoSelecionada.exercicios.length === 0
-                            ? "Adicione exercícios antes de iniciar"
-                            : undefined
-                        }
-                      >
-                        <Play size={17} />
+                      {treinoEmAndamento ? (
+                        <>
+                          <button
+                            className="workout-action workout-action--primary"
+                            type="button"
+                            onClick={() =>
+                              navigate("/treino")
+                            }
+                          >
+                            <Play size={17} />
+                            Continuar treino
+                          </button>
 
-                        {iniciandoTreino
-                          ? "Iniciando..."
-                          : "Iniciar treino"}
-                      </button>
+                          <button
+                            className="workout-action workout-action--danger"
+                            type="button"
+                            disabled={cancelandoTreino}
+                            onClick={() =>
+                              void cancelarTreinoEmAndamento()
+                            }
+                          >
+                            <XCircle size={17} />
+
+                            {cancelandoTreino
+                              ? "Cancelando..."
+                              : "Cancelar treino"}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="workout-action workout-action--primary"
+                          type="button"
+                          disabled={
+                            iniciandoTreino ||
+                            divisaoSelecionada.exercicios.length === 0
+                          }
+                          onClick={() =>
+                            void iniciarTreinoSelecionado()
+                          }
+                          title={
+                            divisaoSelecionada.exercicios.length === 0
+                              ? "Adicione exercícios antes de iniciar"
+                              : undefined
+                          }
+                        >
+                          <Play size={17} />
+
+                          {iniciandoTreino
+                            ? "Iniciando..."
+                            : "Iniciar treino"}
+                        </button>
+                      )}
 
                       <button
                         className="workout-action workout-action--secondary"

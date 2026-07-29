@@ -6,6 +6,7 @@ import {
   Plus,
   Save,
   X,
+  Trash2,
 } from "lucide-react";
 import {
   type FormEvent,
@@ -21,6 +22,7 @@ import {
   finalizarTreino,
   listarTreinos,
   registrarSerie,
+  excluirTreino,
 } from "../services/academiaService";
 
 import type {
@@ -198,6 +200,11 @@ function TreinoPage() {
     tempoDecorridoSegundos,
     setTempoDecorridoSegundos,
   ] = useState(0);
+  
+const [
+  cancelandoTreino,
+  setCancelandoTreino,
+] = useState(false);
 
 useEffect(() => {
   async function carregarTreino() {
@@ -478,6 +485,41 @@ useEffect(() => {
       setSalvandoRascunhoId(null);
     }
   }
+
+async function cancelarTreino() {
+  if (
+    !treino ||
+    cancelandoTreino ||
+    finalizando
+  ) {
+    return;
+  }
+
+  const confirmou = window.confirm(
+    "Deseja cancelar este treino? Todas as séries registradas nele serão excluídas.",
+  );
+
+  if (!confirmou) {
+    return;
+  }
+
+  try {
+    setCancelandoTreino(true);
+    setErro(null);
+
+    await excluirTreino(treino.id);
+
+    navigate("/academia", {
+      replace: true,
+    });
+  } catch {
+    setErro(
+      "Não foi possível cancelar o treino.",
+    );
+  } finally {
+    setCancelandoTreino(false);
+  }
+}
 
   async function concluirTreino() {
     if (!treino || finalizando) {
@@ -890,8 +932,29 @@ useEffect(() => {
       <footer className="treino-footer">
         <button
           type="button"
+          className="treino-cancel-button"
+          disabled={
+            cancelandoTreino ||
+            finalizando
+          }
+          onClick={() =>
+            void cancelarTreino()
+          }
+        >
+          <Trash2 size={18} />
+
+          {cancelandoTreino
+            ? "Cancelando..."
+            : "Cancelar treino"}
+        </button>
+
+        <button
+          type="button"
           className="treino-finish-button"
-          disabled={finalizando}
+          disabled={
+            finalizando ||
+            cancelandoTreino
+          }
           onClick={() =>
             void concluirTreino()
           }
@@ -908,3 +971,4 @@ useEffect(() => {
 }
 
 export default TreinoPage;
+

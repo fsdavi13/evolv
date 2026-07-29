@@ -184,3 +184,11 @@ export async function buscarTreino(
 
   return resposta.data;
 }
+
+export async function excluirTreino(
+  treinoId: number,
+): Promise<void> {
+  await api.delete(
+    `/academia/treinos/${treinoId}`,
+  );
+}
