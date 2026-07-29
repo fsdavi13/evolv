@@ -6,12 +6,22 @@ import {
   Gauge,
   Salad,
   Scale,
+  TrendingUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import DashboardCard from "../components/DashboardCard";
 import { buscarDashboard } from "../services/dashboardService";
 import type { Dashboard } from "../types/dashboard";
+
+import type { DashboardCardDestaque } from "../components/DashboardCard";
+
+import {
+  buscarTreino,
+  listarTreinos,
+} from "../services/academiaService";
+
+import type { Serie } from "../types/academia";
 
 import "./DashboardPage.css";
 
@@ -31,6 +41,193 @@ function formatarData(data: string): string {
     dateStyle: "long",
     timeZone: "UTC",
   }).format(new Date(`${data}T00:00:00Z`));
+}
+
+interface ProgressaoSemanal {
+  valor: string;
+  descricao: string;
+  destaque?: DashboardCardDestaque;
+}
+
+const progressaoSemDados: ProgressaoSemanal = {
+  valor: "—",
+  descricao: "Sem dados suficientes para comparar",
+};
+
+function obterInicioSemana(data: Date): Date {
+  const inicio = new Date(data);
+  const diaDaSemana = inicio.getDay();
+  const diasDesdeSegunda =
+    diaDaSemana === 0 ? 6 : diaDaSemana - 1;
+
+  inicio.setDate(
+    inicio.getDate() - diasDesdeSegunda,
+  );
+
+  inicio.setHours(0, 0, 0, 0);
+
+  return inicio;
+}
+
+function converterDataSerie(data: string): Date {
+  const [ano, mes, dia] = data
+    .split("-")
+    .map(Number);
+
+  return new Date(ano, mes - 1, dia);
+}
+
+function calcularDesempenhoSerie(
+  serie: Serie,
+): number {
+  return (
+    serie.peso *
+    (1 + serie.repeticoes / 30)
+  );
+}
+
+function obterMelhoresDesempenhos(
+  series: Serie[],
+  inicio: Date,
+  fim: Date,
+): Map<number, number> {
+  const melhores = new Map<number, number>();
+
+  series.forEach((serie) => {
+    const data = converterDataSerie(
+      serie.data,
+    );
+
+    if (
+      Number.isNaN(data.getTime()) ||
+      data < inicio ||
+      data >= fim ||
+      serie.peso <= 0 ||
+      serie.repeticoes <= 0
+    ) {
+      return;
+    }
+
+    const desempenho =
+      calcularDesempenhoSerie(serie);
+
+    const desempenhoAtual =
+      melhores.get(serie.exercicio_id) ?? 0;
+
+    if (desempenho > desempenhoAtual) {
+      melhores.set(
+        serie.exercicio_id,
+        desempenho,
+      );
+    }
+  });
+
+  return melhores;
+}
+
+function calcularProgressaoSemanal(
+  series: Serie[],
+): ProgressaoSemanal {
+  const inicioSemanaAtual =
+    obterInicioSemana(new Date());
+
+  const inicioProximaSemana = new Date(
+    inicioSemanaAtual,
+  );
+
+  inicioProximaSemana.setDate(
+    inicioProximaSemana.getDate() + 7,
+  );
+
+  const inicioSemanaAnterior = new Date(
+    inicioSemanaAtual,
+  );
+
+  inicioSemanaAnterior.setDate(
+    inicioSemanaAnterior.getDate() - 7,
+  );
+
+  const semanaAtual =
+    obterMelhoresDesempenhos(
+      series,
+      inicioSemanaAtual,
+      inicioProximaSemana,
+    );
+
+  const semanaAnterior =
+    obterMelhoresDesempenhos(
+      series,
+      inicioSemanaAnterior,
+      inicioSemanaAtual,
+    );
+
+  const variacoes: number[] = [];
+
+  semanaAtual.forEach(
+    (desempenhoAtual, exercicioId) => {
+      const desempenhoAnterior =
+        semanaAnterior.get(exercicioId);
+
+      if (
+        desempenhoAnterior === undefined ||
+        desempenhoAnterior <= 0
+      ) {
+        return;
+      }
+
+      variacoes.push(
+        ((desempenhoAtual -
+          desempenhoAnterior) /
+          desempenhoAnterior) *
+          100,
+      );
+    },
+  );
+
+  if (variacoes.length === 0) {
+    return progressaoSemDados;
+  }
+
+  const media =
+    variacoes.reduce(
+      (total, variacao) =>
+        total + variacao,
+      0,
+    ) / variacoes.length;
+
+  const valorFormatado =
+    media.toLocaleString("pt-BR", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+
+  if (media > 2) {
+    return {
+      valor: `+${valorFormatado}%`,
+      descricao:
+        "Progressão em relação à semana passada",
+      destaque: "verde",
+    };
+  }
+
+  if (media < -2) {
+    return {
+      valor: `${valorFormatado}%`,
+      descricao:
+        "Regressão em relação à semana passada",
+      destaque: "vermelho",
+    };
+  }
+
+  return {
+    valor:
+      media > 0
+        ? `+${valorFormatado}%`
+        : `${valorFormatado}%`,
+    descricao:
+      "Desempenho estável em relação à semana passada",
+    destaque: "amarelo",
+  };
 }
 
 function obterDadosSituacao(
@@ -63,12 +260,24 @@ function obterDadosSituacao(
   }
 }
 
+
+
 function DashboardPage() {
   const [dashboard, setDashboard] =
     useState<Dashboard | null>(null);
 
-  const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  const [progressao, setProgressao] =
+    useState<ProgressaoSemanal>(
+      progressaoSemDados,
+    );
+
+  const [carregando, setCarregando] =
+    useState(true);
+
+  const [erro, setErro] =
+    useState<string | null>(null);
+
+  // restante do código
 
   useEffect(() => {
     async function carregarDashboard() {
@@ -78,6 +287,36 @@ function DashboardPage() {
 
         const dados = await buscarDashboard();
         setDashboard(dados);
+
+        try {
+          const treinos = await listarTreinos();
+
+          const treinosFinalizados = treinos.filter(
+            (treino) => treino.finalizado,
+          );
+
+          const treinosDetalhados = await Promise.all(
+            treinosFinalizados.map((treino) =>
+              buscarTreino(treino.id),
+            ),
+          );
+
+          const series = treinosDetalhados.flatMap(
+            (treino) => treino.series,
+          );
+
+          setProgressao(
+            calcularProgressaoSemanal(series),
+          );
+        } catch (erroProgressao) {
+          console.error(
+            "Erro ao calcular progressão:",
+            erroProgressao,
+          );
+
+          setProgressao(progressaoSemDados);
+        }
+
       } catch {
         setErro(
           "Não foi possível carregar os dados do dashboard.",
@@ -151,12 +390,11 @@ function DashboardPage() {
           />
 
           <DashboardCard
-            titulo="Carga"
-            valor={`${dashboard.academia.volume_total.toLocaleString(
-              "pt-BR",
-            )} kg`}
-            descricao="Carga total movimentada"
-            icone={Gauge}
+            titulo="Progressão"
+            valor={progressao.valor}
+            descricao={progressao.descricao}
+            icone={TrendingUp}
+            destaque={progressao.destaque}
           />
         </div>
       </div>

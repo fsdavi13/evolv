@@ -5,7 +5,9 @@ import "./DashboardCard.css";
 export type DashboardCardDestaque =
   | "verde"
   | "azul"
-  | "laranja";
+  | "laranja"
+  | "amarelo"
+  | "vermelho";
 
 interface DashboardCardProps {
   titulo: string;

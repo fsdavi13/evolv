@@ -79,6 +79,30 @@
   color: #fb923c;
 }
 
+/* Progressão estável */
+
+.dashboard-card--amarelo {
+  background: #262310;
+  border-color: #665c1f;
+}
+
+.dashboard-card--amarelo .dashboard-card__icon,
+.dashboard-card--amarelo .dashboard-card__value {
+  color: #facc15;
+}
+
+/* Regressão */
+
+.dashboard-card--vermelho {
+  background: #2b1719;
+  border-color: #633038;
+}
+
+.dashboard-card--vermelho .dashboard-card__icon,
+.dashboard-card--vermelho .dashboard-card__value {
+  color: #f87171;
+}
+
 @media (min-width: 768px) {
   .dashboard-card {
     min-height: 170px;
