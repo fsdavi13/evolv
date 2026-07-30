@@ -526,8 +526,17 @@ async function cancelarTreino() {
       return;
     }
 
+    const mensagemConfirmacao =
+      series.length === 0
+        ? "Este treino não possui séries registradas. Deseja finalizá-lo mesmo assim?"
+        : `Deseja finalizar este treino com ${series.length} ${
+            series.length === 1
+              ? "série registrada"
+              : "séries registradas"
+          }?`;
+
     const confirmou = window.confirm(
-      "Deseja finalizar este treino?",
+      mensagemConfirmacao,
     );
 
     if (!confirmou) {
