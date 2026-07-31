@@ -426,7 +426,7 @@ function DashboardPage() {
           <DashboardCard
             titulo="Melhor pace"
             valor={dashboard.corrida.melhor_pace ?? "--:--"}
-            descricao="Melhor ritmo registrado no dia"
+            descricao="Melhor ritmo registrado na semana"
             icone={Flame}
           />
         </div>
