@@ -119,3 +119,23 @@
   }
 
 }
+
+.app-navigation__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.app-navigation__brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.app-navigation__brand-text {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+}
