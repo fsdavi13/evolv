@@ -64,7 +64,7 @@
 }
 
 .corridas-input:focus-within {
-  border-color: #71717a;
+  border-color: var(--evolv-green);
 }
 
 .corridas-input input {
@@ -101,7 +101,7 @@
 }
 
 .corridas-form textarea:focus {
-  border-color: #71717a;
+  border-color: var(--evolv-green);
 }
 
 .corridas-submit {
@@ -116,7 +116,7 @@
   padding: 0 16px;
 
   color: #111114;
-  background: #ffffff;
+  background: var(--evolv-green);
   border: 0;
   border-radius: 11px;
 
@@ -383,4 +383,8 @@
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+
+.corridas-submit:hover:not(:disabled) {
+  background: var(--evolv-green-dark);
 }
