@@ -20,8 +20,10 @@ import {
   buscarTreino,
   listarTreinos,
 } from "../services/academiaService";
+import { listarCorridas } from "../services/corridaService";
 
 import type { Serie } from "../types/academia";
+import type { Corrida } from "../types/corrida";
 
 import "./DashboardPage.css";
 
@@ -260,6 +262,93 @@ function obterDadosSituacao(
   }
 }
 
+interface ResumoCorridasSemana {
+  distanciaKm: number;
+  tempoSegundos: number;
+  melhorPace: string | null;
+}
+
+function formatarDataISO(data: Date): string {
+  const ano = data.getFullYear();
+  const mes = String(
+    data.getMonth() + 1,
+  ).padStart(2, "0");
+  const dia = String(
+    data.getDate(),
+  ).padStart(2, "0");
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+function calcularResumoCorridasSemana(
+  corridas: Corrida[],
+): ResumoCorridasSemana {
+  const hoje = new Date();
+
+  const inicioSemana = new Date(hoje);
+  const diaSemana = hoje.getDay();
+
+  const deslocamento =
+    diaSemana === 0
+      ? -6
+      : 1 - diaSemana;
+
+  inicioSemana.setDate(
+    hoje.getDate() + deslocamento,
+  );
+
+  const fimSemana = new Date(inicioSemana);
+  fimSemana.setDate(
+    inicioSemana.getDate() + 6,
+  );
+
+  const inicio = formatarDataISO(
+    inicioSemana,
+  );
+  const fim = formatarDataISO(fimSemana);
+
+  const corridasSemana = corridas.filter(
+    (corrida) =>
+      corrida.data >= inicio &&
+      corrida.data <= fim,
+  );
+
+  const distanciaKm = corridasSemana.reduce(
+    (total, corrida) =>
+      total + corrida.distancia_km,
+    0,
+  );
+
+  const tempoSegundos =
+    corridasSemana.reduce(
+      (total, corrida) =>
+        total +
+        corrida.tempo_total_segundos,
+      0,
+    );
+
+  const melhorCorrida =
+    corridasSemana.reduce<Corrida | null>(
+      (melhor, corrida) => {
+        if (!melhor) {
+          return corrida;
+        }
+
+        return corrida.pace_segundos <
+          melhor.pace_segundos
+          ? corrida
+          : melhor;
+      },
+      null,
+    );
+
+  return {
+    distanciaKm,
+    tempoSegundos,
+    melhorPace:
+      melhorCorrida?.pace ?? null,
+  };
+}
 
 
 function DashboardPage() {
@@ -277,7 +366,32 @@ function DashboardPage() {
   const [erro, setErro] =
     useState<string | null>(null);
 
-  // restante do código
+  const [
+    resumoCorridasSemana,
+    setResumoCorridasSemana,
+  ] = useState<ResumoCorridasSemana | null>(
+    null,
+  );
+
+
+  useEffect(() => {
+    async function carregarCorridasSemana() {
+      try {
+        const corridas =
+          await listarCorridas();
+
+        setResumoCorridasSemana(
+          calcularResumoCorridasSemana(
+            corridas,
+          ),
+        );
+      } catch {
+        setResumoCorridasSemana(null);
+      }
+    }
+
+    void carregarCorridasSemana();
+  }, []);
 
   useEffect(() => {
     async function carregarDashboard() {
@@ -300,6 +414,8 @@ function DashboardPage() {
               buscarTreino(treino.id),
             ),
           );
+
+  
 
           const series = treinosDetalhados.flatMap(
             (treino) => treino.series,
@@ -357,6 +473,7 @@ function DashboardPage() {
     dashboard.metabolismo.situacao_calorica,
   );
 
+
   return (
     <section className="page">
       <header className="page__header">
@@ -407,26 +524,40 @@ function DashboardPage() {
         <div className="dashboard-grid">
           <DashboardCard
             titulo="Distância"
-            valor={`${dashboard.corrida.distancia_total_km.toLocaleString(
-              "pt-BR",
-            )} km`}
-            descricao="Distância total percorrida"
+            valor={
+              resumoCorridasSemana
+                ? `${resumoCorridasSemana.distanciaKm.toLocaleString(
+                    "pt-BR",
+                    {
+                      maximumFractionDigits: 2,
+                    },
+                  )} km`
+                : "—"
+            }
+            descricao="Distância total nesta semana"
             icone={Activity}
           />
 
           <DashboardCard
             titulo="Tempo"
-            valor={formatarTempo(
-              dashboard.corrida.tempo_total_segundos,
-            )}
-            descricao="Tempo total de corrida"
+            valor={
+              resumoCorridasSemana
+                ? formatarTempo(
+                    resumoCorridasSemana.tempoSegundos,
+                  )
+                : "—"
+            }
+            descricao="Tempo total nesta semana"
             icone={Gauge}
           />
 
           <DashboardCard
             titulo="Melhor pace"
-            valor={dashboard.corrida.melhor_pace ?? "--:--"}
-            descricao="Melhor ritmo registrado na semana"
+            valor={
+              resumoCorridasSemana?.melhorPace ??
+              "--:--"
+            }
+            descricao="Melhor pace nesta semana"
             icone={Flame}
           />
         </div>
