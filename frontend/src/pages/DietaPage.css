@@ -2,6 +2,18 @@
   max-width: 1050px;
 }
 
+.dieta-page input[type="date"] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.dieta-page input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 .dieta-summary {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
