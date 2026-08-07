@@ -435,15 +435,27 @@ function DietaPage() {
             <label className="dieta-field">
               <span>Data</span>
 
-              <input
-                type="date"
-                value={data}
-                onChange={(event) =>
-                  setData(
-                    event.target.value,
-                  )
-                }
-              />
+              <div className="dieta-date">
+                <input
+                  type="text"
+                  value={
+                    data
+                      ? data.split("-").reverse().join("/")
+                      : ""
+                  }
+                  readOnly
+                  tabIndex={-1}
+                />
+
+                <input
+                  type="date"
+                  value={data}
+                  onChange={(event) =>
+                    setData(event.target.value)
+                  }
+                  className="dieta-date__native"
+                />
+              </div>
             </label>
 
             <label className="dieta-field">

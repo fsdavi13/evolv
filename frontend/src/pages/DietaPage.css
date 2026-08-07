@@ -2,19 +2,6 @@
   max-width: 1050px;
 }
 
-.dieta-page input[type="date"] {
-  display: block;
-  width: -webkit-fill-available;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.dieta-page input[type="date"]::-webkit-date-and-time-value {
-  text-align: left;
-}
 .dieta-summary {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -81,9 +68,33 @@
 }
 
 .dieta-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dieta-date {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 11px;
+}
+
+.dieta-date > input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.dieta-date__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .dieta-field > span {
