@@ -135,6 +135,12 @@
   border-color: #ffffff;
 }
 
+.workout-tab--active:hover {
+  color: #111114;
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
 .workout-tab--add {
   width: 42px;
   padding: 0;
