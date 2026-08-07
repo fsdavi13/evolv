@@ -24,8 +24,8 @@
   width: 48px;
   height: 48px;
   place-items: center;
-  color: #ffffff;
-  background: #29292f;
+  color: var(--evolv-green);
+  background: var(--evolv-green-soft);
   border-radius: 14px;
 }
 
@@ -81,8 +81,8 @@
 
 .profile-field input:focus,
 .profile-field select:focus {
-  border-color: #71717a;
-  box-shadow: 0 0 0 3px rgba(113, 113, 122, 0.2);
+  border-color: var(--evolv-green);
+  box-shadow: 0 0 0 3px var(--evolv-green-soft);
 }
 
 .profile-field select {
@@ -146,8 +146,8 @@
   gap: 8px;
   min-height: 46px;
   padding: 0 18px;
-  color: #111114;
-  background: #ffffff;
+  color: #10110f;
+  background: var(--evolv-green);
   border: 0;
   border-radius: 12px;
   font: inherit;
@@ -155,12 +155,13 @@
   font-weight: 700;
   cursor: pointer;
   transition:
+    background 160ms ease,
     opacity 160ms ease,
     transform 160ms ease;
 }
 
 .profile-submit:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--evolv-green-dark);
 }
 
 .profile-submit:active:not(:disabled) {
@@ -172,7 +173,14 @@
   cursor: not-allowed;
 }
 
+.profile-submit {
+  width: 100%;
+}
+
 @media (min-width: 640px) {
+  .profile-submit{
+    width: auto;
+  }
   .profile-card__header,
   .profile-form {
     padding: 24px;
