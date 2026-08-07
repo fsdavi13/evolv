@@ -1,8 +1,15 @@
+import os
 from pathlib import Path
 
 DATABASE_DIR = Path(__file__).resolve().parent
 
-DATABASE_PATH = DATABASE_DIR / "evolv.db"
+DATABASE_PATH = Path(
+    os.getenv(
+        "EVOLV_DATABASE_PATH",
+        str(DATABASE_DIR / "evolv.db"),
+    )
+)
+
 TEST_DATABASE_PATH = DATABASE_DIR / "test_evolv.db"
 SCHEMA_PATH = DATABASE_DIR / "schema.sql"
 
